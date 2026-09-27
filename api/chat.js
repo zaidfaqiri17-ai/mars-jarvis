@@ -31,9 +31,14 @@ export default async function handler(req, res) {
       .slice(-20)
       .map(item => {
         const role = item.role === "assistant" ? "model" : "user";
+
         return {
           role,
-          parts: [{ text: String(item.content || "") }]
+          parts: [
+            {
+              text: String(item.content || "")
+            }
+          ]
         };
       })
       .filter(item => item.parts[0].text.trim());
@@ -42,12 +47,16 @@ export default async function handler(req, res) {
       ...history,
       {
         role: "user",
-        parts: [{ text: message }]
+        parts: [
+          {
+            text: message
+          }
+        ]
       }
     ];
 
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
       {
         method: "POST",
         headers: {
