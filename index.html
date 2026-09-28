@@ -1,6 +1,6 @@
 !DOCTYPE html>
 <html lang="de">
-<head>
+<head> 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MARS // JARVIS</title>
@@ -309,6 +309,7 @@ function dedupe(t){
 }
 async function askAI(msg){
   const b=String(S.settings.aiBackend||"").trim();
+ console.log("JARVIS BACKEND:", b);
 
   if(!b){
     speak("Mein KI-Backend ist noch nicht eingerichtet. Trage die Adresse in den Einstellungen ein.");
