@@ -3,12 +3,10 @@ export default async function handler(req, res) {
     "Access-Control-Allow-Origin",
     "https://zaidfaqiri17-ai.github.io"
   );
-
   res.setHeader(
     "Access-Control-Allow-Methods",
     "POST, OPTIONS"
   );
-
   res.setHeader(
     "Access-Control-Allow-Headers",
     "Content-Type"
@@ -25,15 +23,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    const {
-      message,
-      conversation = []
-    } = req.body || {};
+    const body = req.body || {};
 
-    if (
-      !message ||
-      typeof message !== "string"
-    ) {
+    const message =
+      typeof body.message === "string"
+        ? body.message.trim()
+        : "";
+
+    const conversation = Array.isArray(body.conversation)
+      ? body.conversation
+      : [];
+
+    if (!message) {
       return res.status(400).json({
         error: "Message is required"
       });
@@ -46,54 +47,103 @@ export default async function handler(req, res) {
     }
 
     /*
-      Verhindert, dass die aktuelle Nachricht
-      doppelt an Gemini geschickt wird.
-    */
+     * Code 1 kann die aktuelle Nachricht bereits
+     * innerhalb von conversation mitsenden.
+     *
+     * Deshalb entfernen wir einen identischen letzten
+     * User-Eintrag, bevor wir die aktuelle Nachricht
+     * unten selbst hinzufügen.
+     */
+    const history = conversation
+      .slice(-20)
+      .filter(item => {
+        if (!item || typeof item.content !== "string") {
+          return false;
+        }
 
-    const cleanConversation =
-      conversation
-        .slice(-20)
-        .filter(item => {
-          if (
-            !item ||
-            !item.content
-          ) {
-            return false;
-          }
+        const content = item.content.trim();
 
-          return String(item.content).trim() !==
-            message.trim();
-        })
-        .map(item => ({
-          role:
-            item.role === "assistant"
-              ? "model"
-              : "user",
+        if (!content) {
+          return false;
+        }
 
-          parts: [
-            {
-              text: String(
-                item.content
-              )
-            }
-          ]
-        }));
+        if (
+          item.role === "user" &&
+          content === message
+        ) {
+          return false;
+        }
 
-
-    const contents = [
-      ...cleanConversation,
-
-      {
-        role: "user",
-
+        return true;
+      })
+      .map(item => ({
+        role:
+          item.role === "assistant"
+            ? "model"
+            : "user",
         parts: [
           {
-            text: message.trim()
+            text: String(item.content).trim()
+          }
+        ]
+      }));
+
+    /*
+     * Jetzt kommt die aktuelle Nachricht genau EINMAL
+     * an Gemini.
+     */
+    const contents = [
+      ...history,
+      {
+        role: "user",
+        parts: [
+          {
+            text: message
           }
         ]
       }
     ];
 
+    const systemPrompt = `
+Du bist JARVIS, ein hochentwickelter persönlicher KI-Assistent.
+
+Persönlichkeit:
+Ruhig, souverän, intelligent, höflich, technisch kompetent und lösungsorientiert.
+Antworte natürlich, klar und präzise.
+Verwende gelegentlich trockenen, subtilen Humor.
+Sei selbstbewusst, aber niemals arrogant.
+
+Anrede:
+Du darfst den Benutzer gelegentlich mit "Sir" ansprechen,
+aber nicht in jeder Antwort.
+
+Sprache:
+Standardmäßig Deutsch.
+Wenn der Benutzer Englisch oder eine andere Sprache verwendet,
+antworte möglichst in dieser Sprache.
+
+Gespräch:
+Behalte relevanten Kontext bei.
+Normale Fragen sind Gespräche und keine Befehle.
+Stelle bei Unklarheiten kurze Rückfragen.
+Erfinde keine Informationen.
+
+Antwortstil:
+Einfache Fragen kurz beantworten.
+Bei komplexen Fragen ausreichend erklären,
+aber unnötiges Gerede vermeiden.
+Zeige niemals deine interne Gedankenkette.
+Gib stattdessen klare Ergebnisse und kurze Begründungen.
+
+Atmosphäre:
+Futuristisch, elegant, ruhig, professionell,
+intelligent und subtil humorvoll.
+
+Wichtig:
+Du bist ein eigenständiger KI-Assistent.
+Behaupte nicht, die originale Filmfigur
+oder deren originale Stimme zu sein.
+`;
 
     const response = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
@@ -101,149 +151,52 @@ export default async function handler(req, res) {
         method: "POST",
 
         headers: {
-          "Content-Type":
-            "application/json",
-
-          "x-goog-api-key":
-            process.env.GEMINI_API_KEY
+          "Content-Type": "application/json",
+          "x-goog-api-key": process.env.GEMINI_API_KEY
         },
 
         body: JSON.stringify({
-
           systemInstruction: {
-
             parts: [
-
               {
-                text:
-                  `Du bist JARVIS, ein moderner persönlicher KI-Assistent.
-
-Dein Name ist JARVIS.
-
-Antworte standardmäßig auf Deutsch.
-
-WICHTIG:
-Antworte kurz, natürlich und direkt.
-Keine langen Begrüßungen.
-Wenn der Benutzer nur "Hi", "Hallo" oder "Hey" sagt, antworte nur kurz und freundlich, zum Beispiel "Hallo, Sir.".
-
-Gehe nicht unnötig ins Detail.
-Erkläre nur mehr, wenn der Benutzer danach fragt oder es für die Antwort notwendig ist.
-
-Dein Stil:
-- ruhig
-- intelligent
-- höflich
-- selbstbewusst
-- präzise
-- leicht futuristisch
-- gelegentlich subtiler trockener Humor
-
-Du kannst den Benutzer gelegentlich "Sir" nennen, aber nicht in jeder Antwort.
-
-Wenn der Benutzer Deutsch spricht, antworte Deutsch.
-Wenn der Benutzer Englisch spricht, kannst du Englisch antworten.
-
-Du kannst Fragen beantworten, Gespräche führen und Programmcode schreiben.
-
-Wenn der Benutzer Java-Code möchte, schreibe korrekten Java-Code und erkläre ihn nur so ausführlich, wie es nötig ist.
-
-Wichtig:
-Behaupte niemals, dass du eine App geöffnet, eine Datei verändert oder eine Aktion auf dem Gerät durchgeführt hast, wenn diese Aktion nicht tatsächlich ausgeführt wurde.
-
-Du bist JARVIS innerhalb der Anwendung MARS JARVIS.`
+                text: systemPrompt
               }
-
             ]
-
           },
 
-
-          contents,
-
-
-          generationConfig: {
-
-            temperature: 0.55,
-
-            maxOutputTokens: 500
-
-          }
-
+          contents
         })
-
       }
     );
 
-
-    const data =
-      await response.json();
-
+    const data = await response.json();
 
     if (!response.ok) {
+      console.error("Gemini error:", data);
 
-      console.error(
-        "Gemini error:",
-        data
-      );
-
-      return res.status(
-        response.status
-      ).json({
-
+      return res.status(response.status).json({
         error:
           data?.error?.message ||
           "Gemini request failed"
-
       });
-
     }
 
-
-    const reply =
-      data
-        ?.candidates?.[0]
-        ?.content?.parts
-        ?.map(
-          part =>
-            part.text || ""
-        )
-        .join("")
-        .trim();
-
-
-    if (!reply) {
-
-      return res.status(200).json({
-
-        reply:
-          "Verstanden."
-
-      });
-
-    }
-
+    const reply = data?.candidates?.[0]?.content?.parts
+      ?.map(part => part.text || "")
+      .join("")
+      .trim();
 
     return res.status(200).json({
-
-      reply
-
+      reply:
+        reply ||
+        "Entschuldigung, Sir. Ich konnte gerade keine Antwort erzeugen."
     });
-
 
   } catch (error) {
-
-    console.error(
-      "Backend error:",
-      error
-    );
+    console.error("Backend error:", error);
 
     return res.status(500).json({
-
-      error:
-        "Internal server error"
-
+      error: "Internal server error"
     });
-
   }
 }
