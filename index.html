@@ -187,271 +187,1480 @@ let state=structuredClone(DEFAULT_DATA);
 let driveFileId=null,accessToken=null,gisClient=null,saveTimer=null;
 let pendingAction=null;
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function nowStr(){return new Date().toLocaleString("de-DE",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}
-function localSave(){try{localStorage.setItem("mars_jarvis_data",JSON.stringify(state));localStorage.setItem("mars_jarvis_client_id",$("#clientIdInput").value||"")}catch(e){}}
+
+function localSave(){
+ try{
+   localStorage.setItem("mars_jarvis_data",JSON.stringify(state));
+   localStorage.setItem("mars_jarvis_client_id",$("#clientIdInput").value||"")
+ }catch(e){}
+}
+
 function localLoad(){
- try{const raw=localStorage.getItem("mars_jarvis_data");if(raw)state=Object.assign(structuredClone(DEFAULT_DATA),JSON.parse(raw))}catch(e){}
- try{const cid=localStorage.getItem("mars_jarvis_client_id");if(cid)$("#clientIdInput").value=cid}catch(e){}
+ try{
+   const raw=localStorage.getItem("mars_jarvis_data");
+   if(raw)state=Object.assign(structuredClone(DEFAULT_DATA),JSON.parse(raw))
+ }catch(e){}
+ try{
+   const cid=localStorage.getItem("mars_jarvis_client_id");
+   if(cid)$("#clientIdInput").value=cid
+ }catch(e){}
  if(!state.settings)state.settings={};
  state.settings=Object.assign(structuredClone(DEFAULT_DATA.settings),state.settings);
- try{const ai=localStorage.getItem("mars_jarvis_ai_backend");if(ai)state.settings.aiBackend=ai;$("#aiBackendInput").value=state.settings.aiBackend||""}catch(e){}
+ try{
+   const ai=localStorage.getItem("mars_jarvis_ai_backend");
+   if(ai)state.settings.aiBackend=ai;
+   $("#aiBackendInput").value=state.settings.aiBackend||""
+ }catch(e){}
 }
-function setDriveStatus(connected,label){$("#driveDot").classList.toggle("on",!!connected);$("#driveStatus").textContent=label||(connected?"Drive connected":"Drive offline");$("#authBtn").textContent=connected?"Sign out":"Sign in"}
-function loadGis(cb){if(window.google&&google.accounts){cb();return}const s=document.createElement("script");s.src="https://accounts.google.com/gsi/client";s.async=true;s.onload=cb;document.head.appendChild(s)}
+
+function setDriveStatus(connected,label){
+ $("#driveDot").classList.toggle("on",!!connected);
+ $("#driveStatus").textContent=label||(connected?"Drive connected":"Drive offline");
+ $("#authBtn").textContent=connected?"Sign out":"Sign in"
+}
+
+function loadGis(cb){
+ if(window.google&&google.accounts){cb();return}
+ const s=document.createElement("script");
+ s.src="https://accounts.google.com/gsi/client";
+ s.async=true;
+ s.onload=cb;
+ document.head.appendChild(s)
+}
+
 function initAuth(){
- const clientId=$("#clientIdInput").value.trim();if(!clientId){alert("Add your Google OAuth Client ID in Settings first.");switchView("settings");return}
- loadGis(()=>{gisClient=google.accounts.oauth2.initTokenClient({client_id:clientId,scope:"https://www.googleapis.com/auth/drive.appdata",callback:async resp=>{if(resp.error){setDriveStatus(false,"Auth failed");return}accessToken=resp.access_token;setDriveStatus(true,"Drive connected");await driveFindOrCreateFile();await driveLoad();renderAll()}});gisClient.requestAccessToken()})
+ const clientId=$("#clientIdInput").value.trim();
+ if(!clientId){
+   alert("Add your Google OAuth Client ID in Settings first.");
+   switchView("settings");
+   return
+ }
+ loadGis(()=>{
+   gisClient=google.accounts.oauth2.initTokenClient({
+     client_id:clientId,
+     scope:"https://www.googleapis.com/auth/drive.appdata",
+     callback:async resp=>{
+       if(resp.error){
+         setDriveStatus(false,"Auth failed");
+         return
+       }
+       accessToken=resp.access_token;
+       setDriveStatus(true,"Drive connected");
+       await driveFindOrCreateFile();
+       await driveLoad();
+       renderAll()
+     }
+   });
+   gisClient.requestAccessToken()
+ })
 }
-async function driveApi(path,opts={}){const res=await fetch("https://www.googleapis.com"+path,Object.assign({},opts,{headers:Object.assign({},opts.headers||{},{Authorization:"Bearer "+accessToken})}));if(!res.ok)throw new Error("Drive API error "+res.status);return res}
+
+async function driveApi(path,opts={}){
+ const res=await fetch(
+   "https://www.googleapis.com"+path,
+   Object.assign({},opts,{
+     headers:Object.assign({},opts.headers||{},{
+       Authorization:"Bearer "+accessToken
+     })
+   })
+ );
+ if(!res.ok)throw new Error("Drive API error "+res.status);
+ return res
+}
+
 async function driveFindOrCreateFile(){
  const q=encodeURIComponent("name='jarvis-data.json' and trashed=false");
- const listRes=await driveApi("/drive/v3/files?spaces=appDataFolder&q="+q+"&fields=files(id,name)");const list=await listRes.json();
- if(list.files&&list.files.length)driveFileId=list.files[0].id;
- else{const meta={name:"jarvis-data.json",parents:["appDataFolder"]};const createRes=await driveApi("/drive/v3/files?fields=id",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(meta)});driveFileId=(await createRes.json()).id;await driveSave()}
+ const listRes=await driveApi(
+   "/drive/v3/files?spaces=appDataFolder&q="+q+"&fields=files(id,name)"
+ );
+ const list=await listRes.json();
+
+ if(list.files&&list.files.length){
+   driveFileId=list.files[0].id
+ }else{
+   const meta={name:"jarvis-data.json",parents:["appDataFolder"]};
+   const createRes=await driveApi(
+     "/drive/v3/files?fields=id",
+     {
+       method:"POST",
+       headers:{"Content-Type":"application/json"},
+       body:JSON.stringify(meta)
+     }
+   );
+   driveFileId=(await createRes.json()).id;
+   await driveSave()
+ }
 }
-async function driveLoad(){if(!driveFileId)return;try{const res=await driveApi("/drive/v3/files/"+driveFileId+"?alt=media");const text=await res.text();if(text)state=Object.assign(structuredClone(DEFAULT_DATA),JSON.parse(text));}catch(e){console.error(e)}}
-async function driveSave(){localSave();if(!accessToken||!driveFileId)return;try{await driveApi("/upload/drive/v3/files/"+driveFileId+"?uploadType=media",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(state)})}catch(e){console.error(e)}}
-function queueSave(){clearTimeout(saveTimer);saveTimer=setTimeout(driveSave,600)}
-function signOut(){accessToken=null;driveFileId=null;setDriveStatus(false,"Drive offline")}
+
+async function driveLoad(){
+ if(!driveFileId)return;
+ try{
+   const res=await driveApi("/drive/v3/files/"+driveFileId+"?alt=media");
+   const text=await res.text();
+   if(text)state=Object.assign(
+     structuredClone(DEFAULT_DATA),
+     JSON.parse(text)
+   );
+ }catch(e){
+   console.error(e)
+ }
+}
+
+async function driveSave(){
+ localSave();
+ if(!accessToken||!driveFileId)return;
+ try{
+   await driveApi(
+     "/upload/drive/v3/files/"+driveFileId+"?uploadType=media",
+     {
+       method:"PATCH",
+       headers:{"Content-Type":"application/json"},
+       body:JSON.stringify(state)
+     }
+   )
+ }catch(e){
+   console.error(e)
+ }
+}
+
+function queueSave(){
+ clearTimeout(saveTimer);
+ saveTimer=setTimeout(driveSave,600)
+}
+
+function signOut(){
+ accessToken=null;
+ driveFileId=null;
+ setDriveStatus(false,"Drive offline")
+}
+
 $("#authBtn").addEventListener("click",()=>accessToken?signOut():initAuth());
 $("#signOutBtn").addEventListener("click",signOut);
-$("#saveClientId").addEventListener("click",()=>{localSave();initAuth()});
+$("#saveClientId").addEventListener("click",()=>{
+ localSave();
+ initAuth()
+});
 
-const titles={home:["HOME","System overview"],memory:["MEMORY","Notes archive"],tasks:["TASKS","Mission queue"],voice:["VOICE CONSOLE","Speak to JARVIS"],chat:["JARVIS CHAT","Text conversation"],settings:["SETTINGS","Configuration"]};
-function switchView(name){$$(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===name));$$(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+name));$("#viewTitle").textContent=titles[name][0];$("#viewSub").textContent=titles[name][1]}
-$$(".nav-btn").forEach(b=>b.addEventListener("click",()=>switchView(b.dataset.view)));
+const titles={
+ home:["HOME","System overview"],
+ memory:["MEMORY","Notes archive"],
+ tasks:["TASKS","Mission queue"],
+ voice:["VOICE CONSOLE","Speak to JARVIS"],
+ chat:["JARVIS CHAT","Text conversation"],
+ settings:["SETTINGS","Configuration"]
+};
 
-function pushActivity(text){const feed=$("#activityFeed");if(feed.querySelector(".empty"))feed.innerHTML="";const row=document.createElement("div");row.className="feed-item";row.innerHTML="<b>"+nowStr()+"</b> — "+escapeHtml(text);feed.prepend(row);while(feed.children.length>8)feed.removeChild(feed.lastChild)}
-function renderNotes(filter){const list=$("#notesList");list.innerHTML="";const f=(filter||"").toLowerCase();const items=state.notes.filter(n=>!f||n.text.toLowerCase().includes(f)).sort((a,b)=>b.ts-a.ts);if(!items.length){list.innerHTML='<div class="empty">No notes yet.</div>';return}items.forEach(n=>{const card=document.createElement("div");card.className="item-card";card.innerHTML='<div class="body"><p contenteditable="true" class="editable">'+escapeHtml(n.text)+'</p><div class="meta">'+new Date(n.ts).toLocaleString("de-DE",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})+'</div></div><div class="actions"><button class="icon-btn" data-act="del" title="Delete">×</button></div>';card.querySelector(".editable").addEventListener("blur",e=>{n.text=e.target.textContent.trim();queueSave()});card.querySelector("[data-act=del]").addEventListener("click",()=>{state.notes=state.notes.filter(x=>x.id!==n.id);renderNotes($("#noteSearch").value);updateStats();queueSave()});list.appendChild(card)})}
-function addNote(text){text=(text||"").trim();if(!text)return null;const n={id:uid(),text,ts:Date.now()};state.notes.push(n);renderNotes();updateStats();queueSave();pushActivity('Note saved: "'+truncate(text,40)+'"');return n}
-$("#addNoteBtn").addEventListener("click",()=>{addNote($("#noteInput").value);$("#noteInput").value=""});
-$("#noteInput").addEventListener("keydown",e=>{if(e.key==="Enter"){addNote(e.target.value);e.target.value=""}});
+function switchView(name){
+ $$(".nav-btn").forEach(b=>
+   b.classList.toggle("active",b.dataset.view===name)
+ );
+ $$(".view").forEach(v=>
+   v.classList.toggle("active",v.id==="view-"+name)
+ );
+ $("#viewTitle").textContent=titles[name][0];
+ $("#viewSub").textContent=titles[name][1]
+}
+
+$$(".nav-btn").forEach(b=>
+ b.addEventListener("click",()=>switchView(b.dataset.view))
+);
+
+function pushActivity(text){
+ const feed=$("#activityFeed");
+ if(feed.querySelector(".empty"))feed.innerHTML="";
+ const row=document.createElement("div");
+ row.className="feed-item";
+ row.innerHTML="<b>"+nowStr()+"</b> — "+escapeHtml(text);
+ feed.prepend(row);
+ while(feed.children.length>8)feed.removeChild(feed.lastChild)
+}
+
+function renderNotes(filter){
+ const list=$("#notesList");
+ list.innerHTML="";
+ const f=(filter||"").toLowerCase();
+ const items=state.notes
+   .filter(n=>!f||n.text.toLowerCase().includes(f))
+   .sort((a,b)=>b.ts-a.ts);
+
+ if(!items.length){
+   list.innerHTML='<div class="empty">No notes yet.</div>';
+   return
+ }
+
+ items.forEach(n=>{
+   const card=document.createElement("div");
+   card.className="item-card";
+   card.innerHTML=
+     '<div class="body">'+
+     '<p contenteditable="true" class="editable">'+escapeHtml(n.text)+'</p>'+
+     '<div class="meta">'+
+     new Date(n.ts).toLocaleString("de-DE",{
+       month:"short",day:"numeric",
+       hour:"2-digit",minute:"2-digit"
+     })+
+     '</div></div>'+
+     '<div class="actions">'+
+     '<button class="icon-btn" data-act="del" title="Delete">×</button>'+
+     '</div>';
+
+   card.querySelector(".editable").addEventListener("blur",e=>{
+     n.text=e.target.textContent.trim();
+     queueSave()
+   });
+
+   card.querySelector("[data-act=del]").addEventListener("click",()=>{
+     state.notes=state.notes.filter(x=>x.id!==n.id);
+     renderNotes($("#noteSearch").value);
+     updateStats();
+     queueSave()
+   });
+
+   list.appendChild(card)
+ })
+}
+
+function addNote(text){
+ text=(text||"").trim();
+ if(!text)return null;
+
+ const n={
+   id:uid(),
+   text,
+   ts:Date.now()
+ };
+
+ state.notes.push(n);
+ renderNotes();
+ updateStats();
+ queueSave();
+ pushActivity('Note saved: "'+truncate(text,40)+'"');
+ return n
+}
+
+$("#addNoteBtn").addEventListener("click",()=>{
+ addNote($("#noteInput").value);
+ $("#noteInput").value=""
+});
+
+$("#noteInput").addEventListener("keydown",e=>{
+ if(e.key==="Enter"){
+   addNote(e.target.value);
+   e.target.value=""
+ }
+});
+
 $("#noteSearch").addEventListener("input",e=>renderNotes(e.target.value));
 
-function renderTasks(){const list=$("#tasksList");list.innerHTML="";const order={high:0,med:1,low:2};const items=[...state.tasks].sort((a,b)=>(a.done-b.done)||(order[a.priority]-order[b.priority])||(b.ts-a.ts));if(!items.length){list.innerHTML='<div class="empty">No tasks yet.</div>';return}items.forEach(t=>{const card=document.createElement("div");card.className="item-card";const priLabel={high:"HIGH",med:"MED",low:"LOW"}[t.priority];card.innerHTML='<div class="body"><p class="'+(t.done?"done":"")+'"><span class="pri '+t.priority+'">'+priLabel+"</span>"+escapeHtml(t.text)+'</p><div class="meta">'+new Date(t.ts).toLocaleString("de-DE",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})+'</div></div><div class="actions"><button class="icon-btn" data-act="done">✓</button><button class="icon-btn" data-act="del">×</button></div>';card.querySelector("[data-act=done]").addEventListener("click",()=>{t.done=!t.done;renderTasks();updateStats();queueSave();pushActivity((t.done?'Task completed: "':'Task reopened: "')+truncate(t.text,40)+'"')});card.querySelector("[data-act=del]").addEventListener("click",()=>{state.tasks=state.tasks.filter(x=>x.id!==t.id);renderTasks();updateStats();queueSave()});list.appendChild(card)})}
-function addTask(text,priority){text=(text||"").trim();if(!text)return null;const t={id:uid(),text,priority:priority||"med",done:false,ts:Date.now()};state.tasks.push(t);renderTasks();updateStats();queueSave();pushActivity('Task added: "'+truncate(text,40)+'"');return t}
-$("#addTaskBtn").addEventListener("click",()=>{addTask($("#taskInput").value,$("#taskPriority").value);$("#taskInput").value=""});
-$("#taskInput").addEventListener("keydown",e=>{if(e.key==="Enter"){addTask(e.target.value,$("#taskPriority").value);e.target.value=""}});
-function updateStats(){$("#statNotes").textContent=state.notes.length;$("#statTasksOpen").textContent=state.tasks.filter(t=>!t.done).length;$("#statTasksDone").textContent=state.tasks.filter(t=>t.done).length}
-function truncate(s,n){return s.length>n?s.slice(0,n)+"…":s}
-function escapeHtml(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML}
+function renderTasks(){
+ const list=$("#tasksList");
+ list.innerHTML="";
+ const order={high:0,med:1,low:2};
+
+ const items=[...state.tasks].sort(
+   (a,b)=>
+     (a.done-b.done)||
+     (order[a.priority]-order[b.priority])||
+     (b.ts-a.ts)
+ );
+
+ if(!items.length){
+   list.innerHTML='<div class="empty">No tasks yet.</div>';
+   return
+ }
+
+ items.forEach(t=>{
+   const card=document.createElement("div");
+   card.className="item-card";
+
+   const priLabel={
+     high:"HIGH",
+     med:"MED",
+     low:"LOW"
+   }[t.priority];
+
+   card.innerHTML=
+     '<div class="body">'+
+     '<p class="'+(t.done?"done":"")+'">'+
+     '<span class="pri '+t.priority+'">'+priLabel+"</span>"+
+     escapeHtml(t.text)+
+     '</p>'+
+     '<div class="meta">'+
+     new Date(t.ts).toLocaleString("de-DE",{
+       month:"short",day:"numeric",
+       hour:"2-digit",minute:"2-digit"
+     })+
+     '</div></div>'+
+     '<div class="actions">'+
+     '<button class="icon-btn" data-act="done">✓</button>'+
+     '<button class="icon-btn" data-act="del">×</button>'+
+     '</div>';
+
+   card.querySelector("[data-act=done]").addEventListener("click",()=>{
+     t.done=!t.done;
+     renderTasks();
+     updateStats();
+     queueSave();
+     pushActivity(
+       (t.done?'Task completed: "':'Task reopened: "')+
+       truncate(t.text,40)+'"'
+     )
+   });
+
+   card.querySelector("[data-act=del]").addEventListener("click",()=>{
+     state.tasks=state.tasks.filter(x=>x.id!==t.id);
+     renderTasks();
+     updateStats();
+     queueSave()
+   });
+
+   list.appendChild(card)
+ })
+}
+
+function addTask(text,priority){
+ text=(text||"").trim();
+ if(!text)return null;
+
+ const t={
+   id:uid(),
+   text,
+   priority:priority||"med",
+   done:false,
+   ts:Date.now()
+ };
+
+ state.tasks.push(t);
+ renderTasks();
+ updateStats();
+ queueSave();
+ pushActivity('Task added: "'+truncate(text,40)+'"');
+ return t
+}
+
+$("#addTaskBtn").addEventListener("click",()=>{
+ addTask($("#taskInput").value,$("#taskPriority").value);
+ $("#taskInput").value=""
+});
+
+$("#taskInput").addEventListener("keydown",e=>{
+ if(e.key==="Enter"){
+   addTask(e.target.value,$("#taskPriority").value);
+   e.target.value=""
+ }
+});
+
+function updateStats(){
+ $("#statNotes").textContent=state.notes.length;
+ $("#statTasksOpen").textContent=state.tasks.filter(t=>!t.done).length;
+ $("#statTasksDone").textContent=state.tasks.filter(t=>t.done).length
+}
+
+function truncate(s,n){
+ return s.length>n?s.slice(0,n)+"…":s
+}
+
+function escapeHtml(s){
+ const d=document.createElement("div");
+ d.textContent=s;
+ return d.innerHTML
+}
 
 /* ---------- AI ---------- */
+
 let jarvisSpeaking=false;
+
 function speak(text){
-  logVoice("jarvis",text);
-  jarvisSpeaking=true;
-  if(recognition)try{recognition.stop()}catch(e){}
-  if(state.settings.speak===false||muted||!("speechSynthesis"in window)){
-    jarvisSpeaking=false;
-    if(continuousMode)startListening();
-    return;
-  }
-  window.speechSynthesis.cancel();
-  const voices=window.speechSynthesis.getVoices();
-  const german=voices.filter(v=>/^de(-|$)/i.test(v.lang));
-  const preferred=
-    german.find(v=>/male|männ|mann|deep|david|markus|hans/i.test(v.name))||
-    german.find(v=>/^de-DE/i.test(v.lang))||
-    german[0]||
-    voices.find(v=>/male|männ|mann|deep/i.test(v.name))||
-    voices[0];
-  const u=new SpeechSynthesisUtterance(text);
-  if(preferred)u.voice=preferred;
-  u.lang=preferred?.lang||"de-DE";
-  u.rate=.94;
-  u.pitch=.68;
-  u.volume=1;
-  u.onend=()=>{jarvisSpeaking=false;if(continuousMode)startListening()};
-  u.onerror=()=>{jarvisSpeaking=false;if(continuousMode)startListening()};
-  window.speechSynthesis.speak(u);
+ logVoice("jarvis",text);
+
+ jarvisSpeaking=true;
+
+ if(recognition){
+   try{recognition.stop()}catch(e){}
+ }
+
+ if(
+   state.settings.speak===false||
+   muted||
+   !("speechSynthesis" in window)
+ ){
+   jarvisSpeaking=false;
+   if(continuousMode)startListening();
+   return
+ }
+
+ window.speechSynthesis.cancel();
+
+ const voices=window.speechSynthesis.getVoices();
+ const german=voices.filter(v=>/^de(-|$)/i.test(v.lang));
+
+ const preferred=
+   german.find(v=>
+     /male|männ|mann|deep|david|markus|hans/i.test(v.name)
+   )||
+   german.find(v=>/^de-DE/i.test(v.lang))||
+   german[0]||
+   voices.find(v=>/male|männ|mann|deep/i.test(v.name))||
+   voices[0];
+
+ const u=new SpeechSynthesisUtterance(text);
+
+ if(preferred)u.voice=preferred;
+
+ u.lang=preferred?.lang||"de-DE";
+ u.rate=.94;
+ u.pitch=.68;
+ u.volume=1;
+
+ u.onend=()=>{
+   jarvisSpeaking=false;
+   if(continuousMode)startListening()
+ };
+
+ u.onerror=()=>{
+   jarvisSpeaking=false;
+   if(continuousMode)startListening()
+ };
+
+ window.speechSynthesis.speak(u)
 }
-function logVoice(who,text){const log=$("#voiceLog");const row=document.createElement("div");row.className="log-row"+(who==="jarvis"?" jarvis":"");row.innerHTML='<span class="who">'+(who==="jarvis"?"JARVIS":"YOU")+"</span>"+escapeHtml(text);log.prepend(row);while(log.children.length>20)log.removeChild(log.lastChild);if(who!=="system"){state.conversations.push({who,text,ts:Date.now()});if(state.conversations.length>200)state.conversations.shift();queueSave()}}
-function conversationForAI(){return state.conversations.slice(-20).map(x=>({role:x.who==="jarvis"?"assistant":"user",content:x.text}))}
+
+function logVoice(who,text){
+ const log=$("#voiceLog");
+ const row=document.createElement("div");
+
+ row.className="log-row"+(who==="jarvis"?" jarvis":"");
+
+ row.innerHTML=
+   '<span class="who">'+
+   (who==="jarvis"?"JARVIS":"YOU")+
+   "</span>"+
+   escapeHtml(text);
+
+ log.prepend(row);
+
+ while(log.children.length>20)
+   log.removeChild(log.lastChild);
+
+ if(who!=="system"){
+   state.conversations.push({
+     who,
+     text,
+     ts:Date.now()
+   });
+
+   if(state.conversations.length>200)
+     state.conversations.shift();
+
+   queueSave()
+ }
+}
+
+function conversationForAI(){
+ return state.conversations
+   .slice(-20)
+   .map(x=>({
+     role:x.who==="jarvis"?"assistant":"user",
+     content:x.text
+   }))
+}
 
 async function askAI(message){
  const backend=(state.settings.aiBackend||"").trim();
- if(!backend){speak("Mein KI-Backend ist noch nicht eingerichtet. Öffne die Einstellungen und trage die Backend-URL ein.");switchView("settings");return}
+
+ if(!backend){
+   speak(
+     "Mein KI-Backend ist noch nicht eingerichtet. "+
+     "Öffne die Einstellungen und trage die Backend-URL ein."
+   );
+   switchView("settings");
+   return
+ }
+
  try{
-   $("#transcript").textContent="JARVIS verarbeitet deine Anfrage…";
-   const res=await fetch(backend.replace(/\/$/,"")+"/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message,conversation:conversationForAI()})});
-   if(!res.ok)throw new Error("HTTP "+res.status);
+   $("#transcript").textContent=
+     "JARVIS verarbeitet deine Anfrage…";
+
+   const res=await fetch(
+     backend.replace(/\/$/,"")+"/api/chat",
+     {
+       method:"POST",
+       headers:{
+         "Content-Type":"application/json"
+       },
+       body:JSON.stringify({
+         message,
+         conversation:conversationForAI()
+       })
+     }
+   );
+
+   if(!res.ok)
+     throw new Error("HTTP "+res.status);
+
    const data=await res.json();
-   if(data.action)handleAIAction(data.action);
-   const answer=data.reply||"Ich konnte gerade keine Antwort erzeugen.";
+
+   if(data.action)
+     handleAIAction(data.action);
+
+   const answer=
+     data.reply||
+     "Ich konnte gerade keine Antwort erzeugen.";
+
    speak(answer);
    renderChat();
- }catch(e){console.error(e);speak("Ich konnte den KI-Dienst gerade nicht erreichen. Prüfe bitte die Backend-URL und den Server.")}
+
+ }catch(e){
+   console.error(e);
+   speak(
+     "Ich konnte den KI-Dienst gerade nicht erreichen. "+
+     "Prüfe bitte die Backend-URL und den Server."
+   )
+ }
 }
+
+/* ---------- Voice cleanup ---------- */
+
+function cleanVoiceText(text){
+ let s=text.replace(/\s+/g," ").trim();
+
+ if(!s)return "";
+
+ /*
+   Entfernt direkt hintereinander erkannte Doppelungen:
+   "öffne öffne YouTube"
+   "YouTube YouTube"
+ */
+ let words=s.split(" ");
+ const out=[];
+
+ for(const word of words){
+   if(
+     out.length &&
+     out[out.length-1].toLowerCase()===word.toLowerCase()
+   ){
+     continue
+   }
+
+   out.push(word)
+ }
+
+ s=out.join(" ");
+
+ /*
+   Wenn die Spracherkennung denselben kompletten Satz
+   zweimal liefert, behalten wir nur eine Hälfte.
+ */
+ const w=s.split(" ");
+
+ if(w.length>=4 && w.length%2===0){
+   const half=w.length/2;
+
+   const a=w
+     .slice(0,half)
+     .join(" ")
+     .toLowerCase();
+
+   const b=w
+     .slice(half)
+     .join(" ")
+     .toLowerCase();
+
+   if(a===b)
+     s=w.slice(0,half).join(" ")
+ }
+
+ return s
+}
+
+/* ---------- Natural app command detection ---------- */
+
+function detectAppCommand(text){
+ const lower=text.toLowerCase();
+
+ const apps=Object.keys(appTargets);
+
+ const app=apps.find(name=>
+   new RegExp("\\b"+name+"\\b","i").test(lower)
+ );
+
+ if(!app)return null;
+
+ /*
+   Natürliche Formulierungen:
+   "Öffne YouTube"
+   "Kannst du bitte YouTube öffnen?"
+   "Mach WhatsApp auf"
+   "Starte Spotify"
+   "Öffne bitte Instagram"
+   "Kannst du Minecraft starten?"
+ */
+ const openIntent=[
+   /\b(?:öffne|oeffne|öffnen|oeffnen|open|starte|start|starten|launch)\b/i,
+
+   /\b(?:mach|mache)\b.*\bauf\b/i,
+
+   /\b(?:kannst du|könntest du|koenntest du)\b.*\b(?:öffnen|oeffnen|open|starten|start|starte)\b/i,
+
+   /\b(?:geh|gehe|bring(?:e)? mich)\b.*\b(?:zu|auf)\b/i
+ ];
+
+ return openIntent.some(r=>r.test(lower))
+   ?app
+   :null
+}
+
+/* ---------- Command handler ---------- */
 
 function handleCommand(raw){
- const cmd=raw.trim();if(!cmd)return;$("#transcript").textContent=cmd;logVoice("you",cmd);
- const lower=cmd.toLowerCase();let m;
- if((m=lower.match(/^(?:jarvis[, ]*)?(?:save |add |take )?note[:\s]+(.+)/))){addNote(cmd.slice(cmd.toLowerCase().indexOf(m[1])));switchView("memory");speak("Ich habe die Notiz gespeichert.");return}
- if(/^(?:jarvis[, ]*)?show(?: my)? notes?$/.test(lower)){switchView("memory");speak("Hier sind deine Notizen. Insgesamt "+state.notes.length+".");return}
- if((m=lower.match(/^(?:jarvis[, ]*)?(?:add |create )?task[:\s]+(.+)/))){let text=m[1],priority="med";const pm=text.match(/\b(high|medium|med|low)\s*priority\b/);if(pm){priority=pm[1].startsWith("h")?"high":pm[1].startsWith("l")?"low":"med";text=text.replace(pm[0],"").trim()}addTask(text,priority);switchView("tasks");speak("Aufgabe hinzugefügt.");return}
- if(/^(?:jarvis[, ]*)?show(?: my)? tasks?$/.test(lower)){switchView("tasks");speak("Du hast "+state.tasks.filter(t=>!t.done).length+" offene Aufgaben.");return}
- if((m=lower.match(/^(?:go to |open )?(home|memory|tasks|voice|settings)$/))){switchView(m[1]);speak("Öffne "+m[1]+".");return}
- const appMatch=lower.match(/^(?:open|öffne|starte)\s+(youtube|spotify|whatsapp|tiktok|snapchat|instagram|chrome|roblox|minecraft)$/);
- if(appMatch){requestAppAction(appMatch[1]);return}
- askAI(cmd);
+ const cmd=cleanVoiceText(raw);
+
+ if(!cmd)return;
+
+ $("#transcript").textContent=cmd;
+
+ logVoice("you",cmd);
+
+ const lower=cmd.toLowerCase();
+ let m;
+
+ if(
+   (m=lower.match(
+     /^(?:jarvis[, ]*)?(?:save |add |take )?note[:\s]+(.+)/
+   ))
+ ){
+   addNote(
+     cmd.slice(
+       cmd.toLowerCase().indexOf(m[1])
+     )
+   );
+
+   switchView("memory");
+
+   speak("Ich habe die Notiz gespeichert.");
+
+   return
+ }
+
+ if(
+   /^(?:jarvis[, ]*)?show(?: my)? notes?$/.test(lower)
+ ){
+   switchView("memory");
+
+   speak(
+     "Hier sind deine Notizen. Insgesamt "+
+     state.notes.length+"."
+   );
+
+   return
+ }
+
+ if(
+   (m=lower.match(
+     /^(?:jarvis[, ]*)?(?:add |create )?task[:\s]+(.+)/
+   ))
+ ){
+   let text=m[1];
+   let priority="med";
+
+   const pm=text.match(
+     /\b(high|medium|med|low)\s*priority\b/
+   );
+
+   if(pm){
+     priority=
+       pm[1].startsWith("h")
+       ?"high"
+       :pm[1].startsWith("l")
+       ?"low"
+       :"med";
+
+     text=text.replace(pm[0],"").trim()
+   }
+
+   addTask(text,priority);
+   switchView("tasks");
+
+   speak("Aufgabe hinzugefügt.");
+
+   return
+ }
+
+ if(
+   /^(?:jarvis[, ]*)?show(?: my)? tasks?$/.test(lower)
+ ){
+   switchView("tasks");
+
+   speak(
+     "Du hast "+
+     state.tasks.filter(t=>!t.done).length+
+     " offene Aufgaben."
+   );
+
+   return
+ }
+
+ if(
+   (m=lower.match(
+     /^(?:go to |open )?(home|memory|tasks|voice|settings)$/
+   ))
+ ){
+   switchView(m[1]);
+
+   speak("Öffne "+m[1]+".");
+
+   return
+ }
+
+ /*
+   App-Befehle werden VOR der KI geprüft.
+   Dadurch fragt JARVIS nicht mehr Gemini,
+   was "Öffne YouTube" bedeutet.
+ */
+ const appCommand=detectAppCommand(cmd);
+
+ if(appCommand){
+   requestAppAction(appCommand);
+   return
+ }
+
+ /*
+   Alles andere geht an Gemini.
+ */
+ askAI(cmd)
 }
 
-/* ---------- App control: browser-safe + confirmation ---------- */
+/* ---------- App control ---------- */
+
 const appTargets={
- youtube:{label:"YouTube",url:"https://www.youtube.com/"},
- spotify:{label:"Spotify",url:"https://open.spotify.com/"},
- whatsapp:{label:"WhatsApp",url:"https://web.whatsapp.com/"},
- tiktok:{label:"TikTok",url:"https://www.tiktok.com/"},
- snapchat:{label:"Snapchat",url:"https://www.snapchat.com/"},
- instagram:{label:"Instagram",url:"https://www.instagram.com/"},
- chrome:{label:"Chrome",url:"https://www.google.com/chrome/"},
- roblox:{label:"Roblox",url:"https://www.roblox.com/"},
- minecraft:{label:"Minecraft",url:"https://www.minecraft.net/"}
-};
-function requestAppAction(app){
- const target=appTargets[app];if(!target)return;
- if(!state.settings.appControl){speak("App-Steuerung ist in den Einstellungen deaktiviert.");return}
- if(state.settings.appConfirm!==false){
-   pendingAction=()=>openApp(target);
-   $("#confirmText").textContent=target.label+" öffnen?";
-   $("#confirmBox").classList.add("show");
-   return;
+ youtube:{
+   label:"YouTube",
+   url:"https://www.youtube.com/"
+ },
+
+ spotify:{
+   label:"Spotify",
+   url:"https://open.spotify.com/"
+ },
+
+ whatsapp:{
+   label:"WhatsApp",
+   url:"https://web.whatsapp.com/"
+ },
+
+ tiktok:{
+   label:"TikTok",
+   url:"https://www.tiktok.com/"
+ },
+
+ snapchat:{
+   label:"Snapchat",
+   url:"https://www.snapchat.com/"
+ },
+
+ instagram:{
+   label:"Instagram",
+   url:"https://www.instagram.com/"
+ },
+
+ chrome:{
+   label:"Chrome",
+   url:"https://www.google.com/chrome/"
+ },
+
+ roblox:{
+   label:"Roblox",
+   url:"https://www.roblox.com/"
+ },
+
+ minecraft:{
+   label:"Minecraft",
+   url:"https://www.minecraft.net/"
  }
- openApp(target);
+};
+
+function requestAppAction(app){
+ const target=appTargets[app];
+
+ if(!target)return;
+
+ if(!state.settings.appControl){
+   speak(
+     "App-Steuerung ist in den Einstellungen deaktiviert."
+   );
+   return
+ }
+
+ if(state.settings.appConfirm!==false){
+
+   pendingAction=()=>openApp(target);
+
+   $("#confirmText").textContent=
+     target.label+" öffnen?";
+
+   $("#confirmBox").classList.add("show");
+
+   return
+ }
+
+ openApp(target)
 }
-function openApp(target){pendingAction=null;$("#confirmBox").classList.remove("show");pushActivity("App opened: "+target.label);window.open(target.url,"_blank","noopener")}
-$("#confirmYes").addEventListener("click",()=>{if(pendingAction)pendingAction()});
-$("#confirmNo").addEventListener("click",()=>{pendingAction=null;$("#confirmBox").classList.remove("show");speak("Aktion abgebrochen.")});
-$$(".app-btn").forEach(b=>b.addEventListener("click",()=>requestAppAction(b.dataset.app)));
+
+function openApp(target){
+ pendingAction=null;
+
+ $("#confirmBox").classList.remove("show");
+
+ pushActivity(
+   "App opened: "+target.label
+ );
+
+ /*
+   Erst neues Fenster versuchen.
+   Falls der Browser den Popup-Versuch blockiert,
+   wird direkt zur Zielseite gewechselt.
+ */
+ const opened=window.open(
+   target.url,
+   "_blank",
+   "noopener,noreferrer"
+ );
+
+ if(!opened){
+   window.location.href=target.url
+ }
+}
+
+$("#confirmYes").addEventListener("click",()=>{
+ if(pendingAction)
+   pendingAction()
+});
+
+$("#confirmNo").addEventListener("click",()=>{
+ pendingAction=null;
+
+ $("#confirmBox").classList.remove("show");
+
+ speak("Aktion abgebrochen.")
+});
+
+$$(".app-btn").forEach(b=>
+ b.addEventListener(
+   "click",
+   ()=>requestAppAction(b.dataset.app)
+ )
+);
 
 /* ---------- Chat UI ---------- */
+
 function renderChat(){
-  const box=$("#chatMessages");
-  if(!box)return;
-  box.innerHTML="";
-  const items=state.conversations.slice(-30);
-  if(!items.length){
-    box.innerHTML='<div class="empty">Noch kein Chat. Schreib JARVIS etwas.</div>';
-    return;
-  }
-  items.forEach(x=>{
-    const row=document.createElement("div");
-    row.className="chat-msg "+(x.who==="jarvis"?"jarvis":"user");
-    row.innerHTML='<div class="chat-who">'+(x.who==="jarvis"?"JARVIS":"DU")+'</div>'+escapeHtml(x.text);
-    box.appendChild(row);
-  });
-  box.scrollTop=box.scrollHeight;
+ const box=$("#chatMessages");
+
+ if(!box)return;
+
+ box.innerHTML="";
+
+ const items=state.conversations.slice(-30);
+
+ if(!items.length){
+   box.innerHTML=
+     '<div class="empty">'+
+     'Noch kein Chat. Schreib JARVIS etwas.'+
+     '</div>';
+
+   return
+ }
+
+ items.forEach(x=>{
+   const row=document.createElement("div");
+
+   row.className=
+     "chat-msg "+
+     (x.who==="jarvis"?"jarvis":"user");
+
+   row.innerHTML=
+     '<div class="chat-who">'+
+     (x.who==="jarvis"?"JARVIS":"DU")+
+     '</div>'+
+     escapeHtml(x.text);
+
+   box.appendChild(row)
+ });
+
+ box.scrollTop=box.scrollHeight
 }
+
 async function sendChatMessage(){
-  const input=$("#chatInput");
-  if(!input)return;
-  const message=input.value.trim();
-  if(!message)return;
-  input.value="";
-  logVoice("you",message);
-  renderChat();
-  switchView("chat");
-  await askAI(message);
-  renderChat();
+ const input=$("#chatInput");
+
+ if(!input)return;
+
+ const message=input.value.trim();
+
+ if(!message)return;
+
+ input.value="";
+
+ logVoice("you",message);
+
+ renderChat();
+
+ switchView("chat");
+
+ await askAI(message);
+
+ renderChat()
 }
-$("#chatSend").addEventListener("click",sendChatMessage);
+
+$("#chatSend").addEventListener(
+ "click",
+ sendChatMessage
+);
+
 $("#chatInput").addEventListener("keydown",e=>{
-  if(e.key==="Enter"&&!e.shiftKey){
-    e.preventDefault();
-    sendChatMessage();
-  }
+ if(e.key==="Enter"&&!e.shiftKey){
+   e.preventDefault();
+   sendChatMessage()
+ }
 });
 
 /* ---------- Speech recognition ---------- */
-const SpeechRec=window.SpeechRecognition||window.webkitSpeechRecognition;
-let recognition=null,listening=false,continuousMode=false,muted=false,pttHeld=false;
-let voiceBuffer="",voiceSilenceTimer=null,voiceProcessing=false;
+
+const SpeechRec=
+ window.SpeechRecognition||
+ window.webkitSpeechRecognition;
+
+let recognition=null;
+let listening=false;
+let continuousMode=false;
+let muted=false;
+let pttHeld=false;
+
+let voiceBuffer="";
+let voiceSilenceTimer=null;
+let voiceProcessing=false;
+
 const VOICE_END_DELAY=2000;
 
 function scheduleVoiceSend(){
+
  clearTimeout(voiceSilenceTimer);
- if(!voiceBuffer.trim()||voiceProcessing)return;
- voiceSilenceTimer=setTimeout(async()=>{
-   const message=voiceBuffer.replace(/\s+/g," ").trim();
-   voiceBuffer="";
-   if(!message)return;
-   voiceProcessing=true;
-   try{await handleCommand(message)}
-   finally{voiceProcessing=false;if(continuousMode&&!jarvisSpeaking)startListening()}
- },VOICE_END_DELAY);
+
+ if(
+   !voiceBuffer.trim()||
+   voiceProcessing||
+   jarvisSpeaking
+ )return;
+
+ voiceSilenceTimer=setTimeout(
+   async()=>{
+     if(jarvisSpeaking)return;
+
+     const message=cleanVoiceText(
+       voiceBuffer
+     );
+
+     voiceBuffer="";
+
+     if(!message)return;
+
+     voiceProcessing=true;
+
+     try{
+       await handleCommand(message)
+     }finally{
+       voiceProcessing=false;
+
+       if(
+         continuousMode&&
+         !jarvisSpeaking
+       ){
+         startListening()
+       }
+     }
+   },
+   VOICE_END_DELAY
+ )
 }
 
 function setupRecognition(){
- if(!SpeechRec){$("#transcript").textContent="Spracherkennung wird in diesem Browser nicht unterstützt.";return}
+
+ if(!SpeechRec){
+   $("#transcript").textContent=
+     "Spracherkennung wird in diesem Browser nicht unterstützt.";
+
+   return
+ }
+
  recognition=new SpeechRec();
+
  recognition.continuous=true;
  recognition.interimResults=true;
  recognition.lang="de-DE";
+
  recognition.onresult=e=>{
+
    let interim="";
-   for(let i=e.resultIndex;i<e.results.length;i++){
+
+   for(
+     let i=e.resultIndex;
+     i<e.results.length;
+     i++
+   ){
+
      const result=e.results[i];
      const t=result[0].transcript;
+
      if(result.isFinal){
+
        const lower=t.toLowerCase();
-       if(pttHeld||continuousMode||lower.includes("jarvis")){
-         const stripped=t.replace(/^\s*(hey\s+)?jarvis[,]?\s*/i,"").trim();
-         if(stripped){
-           voiceBuffer+=(voiceBuffer?" ":"")+stripped;
-           $("#transcript").textContent=voiceBuffer;
-           scheduleVoiceSend();
+
+       if(
+         pttHeld||
+         continuousMode||
+         lower.includes("jarvis")
+       ){
+
+         const stripped=
+           t.replace(
+             /^\s*(hey\s+)?jarvis[,]?\s*/i,
+             ""
+           ).trim();
+
+         if(
+           stripped&&
+           !jarvisSpeaking
+         ){
+
+           const cleaned=
+             cleanVoiceText(stripped);
+
+           if(cleaned){
+
+             /*
+               Verhindert, dass ein von der
+               Spracherkennung wiederholtes Ergebnis
+               mehrfach in den Puffer geschrieben wird.
+             */
+             const current=
+               cleanVoiceText(voiceBuffer);
+
+             if(
+               !current||
+               !current
+                 .toLowerCase()
+                 .endsWith(
+                   cleaned.toLowerCase()
+                 )
+             ){
+
+               voiceBuffer+=
+                 (voiceBuffer?" ":"")+
+                 cleaned
+             }
+
+             voiceBuffer=
+               cleanVoiceText(
+                 voiceBuffer
+               );
+
+             $("#transcript").textContent=
+               voiceBuffer;
+
+             scheduleVoiceSend()
+           }
          }
        }
-     }else interim+=t;
+
+     }else{
+
+       interim+=t
+     }
    }
+
    if(interim){
-     const preview=(voiceBuffer?voiceBuffer+" ":"")+interim.trim();
-     $("#transcript").textContent=preview;
-     clearTimeout(voiceSilenceTimer);
+
+     const preview=
+       (voiceBuffer?
+         voiceBuffer+" "
+         :"")+
+       interim.trim();
+
+     $("#transcript").textContent=
+       preview;
+
+     /*
+       Bei einem Zwischenresultat nicht sofort
+       abschicken.
+     */
+     clearTimeout(
+       voiceSilenceTimer
+     )
    }
  };
- recognition.onerror=()=>{setOrb(false);if(continuousMode&&!jarvisSpeaking&&!voiceProcessing)setTimeout(()=>startListening(),150)};
- recognition.onend=()=>{
+
+ recognition.onerror=()=>{
+
    setOrb(false);
-   if(voiceBuffer.trim())scheduleVoiceSend();
-   if(continuousMode&&!jarvisSpeaking&&!voiceProcessing)setTimeout(()=>startListening(),150);
+
+   if(
+     continuousMode&&
+     !jarvisSpeaking&&
+     !voiceProcessing
+   ){
+     setTimeout(
+       ()=>startListening(),
+       150
+     )
+   }
  };
+
+ recognition.onend=()=>{
+
+   setOrb(false);
+
+   if(voiceBuffer.trim())
+     scheduleVoiceSend();
+
+   if(
+     continuousMode&&
+     !jarvisSpeaking&&
+     !voiceProcessing
+   ){
+     setTimeout(
+       ()=>startListening(),
+       150
+     )
+   }
+ }
 }
-function setOrb(on){listening=on;$("#orb").classList.toggle("listening",on)}
+
+function setOrb(on){
+ listening=on;
+
+ $("#orb").classList.toggle(
+   "listening",
+   on
+ )
+}
+
 function startListening(){
- if(jarvisSpeaking||voiceProcessing)return;
- if(!recognition)setupRecognition();
+
+ if(
+   jarvisSpeaking||
+   voiceProcessing
+ )return;
+
+ if(!recognition)
+   setupRecognition();
+
  if(!recognition)return;
- try{recognition.start();setOrb(true)}catch(e){}
+
+ try{
+   recognition.start();
+   setOrb(true)
+ }catch(e){}
 }
+
 function stopListening(){
- if(recognition)try{recognition.stop()}catch(e){}
- setOrb(false);
+
+ if(recognition){
+   try{
+     recognition.stop()
+   }catch(e){}
+ }
+
+ setOrb(false)
 }
-$("#ptt").addEventListener("mousedown",()=>{pttHeld=true;startListening()});
-$("#ptt").addEventListener("touchstart",e=>{e.preventDefault();pttHeld=true;startListening()});
-["mouseup","mouseleave"].forEach(ev=>$("#ptt").addEventListener(ev,()=>{if(pttHeld){pttHeld=false;if(!continuousMode)stopListening();if(voiceBuffer.trim())scheduleVoiceSend()}}));
-["touchend","touchcancel"].forEach(ev=>$("#ptt").addEventListener(ev,()=>{if(pttHeld){pttHeld=false;if(!continuousMode)stopListening();if(voiceBuffer.trim())scheduleVoiceSend()}}));
-$("#continuousToggle").addEventListener("click",()=>{continuousMode=!continuousMode;$("#continuousToggle").classList.toggle("active",continuousMode);state.settings.continuous=continuousMode;queueSave();if(continuousMode)startListening();else stopListening()});
-$("#muteBtn").addEventListener("click",()=>{muted=!muted;$("#muteBtn").classList.toggle("active",muted);state.settings.speak=!muted;queueSave()});
+
+$("#ptt").addEventListener(
+ "mousedown",
+ ()=>{
+   pttHeld=true;
+   startListening()
+ }
+);
+
+$("#ptt").addEventListener(
+ "touchstart",
+ e=>{
+   e.preventDefault();
+   pttHeld=true;
+   startListening()
+ }
+);
+
+["mouseup","mouseleave"].forEach(ev=>
+ $("#ptt").addEventListener(
+   ev,
+   ()=>{
+     if(pttHeld){
+       pttHeld=false;
+
+       if(!continuousMode)
+         stopListening();
+
+       if(voiceBuffer.trim())
+         scheduleVoiceSend()
+     }
+   }
+ )
+);
+
+["touchend","touchcancel"].forEach(ev=>
+ $("#ptt").addEventListener(
+   ev,
+   ()=>{
+     if(pttHeld){
+       pttHeld=false;
+
+       if(!continuousMode)
+         stopListening();
+
+       if(voiceBuffer.trim())
+         scheduleVoiceSend()
+     }
+   }
+ )
+);
+
+$("#continuousToggle").addEventListener(
+ "click",
+ ()=>{
+   continuousMode=!continuousMode;
+
+   $("#continuousToggle")
+     .classList
+     .toggle(
+       "active",
+       continuousMode
+     );
+
+   state.settings.continuous=
+     continuousMode;
+
+   queueSave();
+
+   if(continuousMode)
+     startListening();
+   else
+     stopListening()
+ }
+);
+
+$("#muteBtn").addEventListener(
+ "click",
+ ()=>{
+   muted=!muted;
+
+   $("#muteBtn")
+     .classList
+     .toggle(
+       "active",
+       muted
+     );
+
+   state.settings.speak=
+     !muted;
+
+   queueSave()
+ }
+);
 
 /* ---------- Settings ---------- */
-$("#swContinuous").addEventListener("click",function(){this.classList.toggle("on");state.settings.continuous=this.classList.contains("on");queueSave();continuousMode=state.settings.continuous;$("#continuousToggle").classList.toggle("active",continuousMode);if(continuousMode)startListening();else stopListening()});
-$("#swSpeak").addEventListener("click",function(){this.classList.toggle("on");state.settings.speak=this.classList.contains("on");queueSave();muted=!state.settings.speak;$("#muteBtn").classList.toggle("active",muted)});
-$("#swAppControl").addEventListener("click",function(){this.classList.toggle("on");state.settings.appControl=this.classList.contains("on");queueSave()});
-$("#swAppConfirm").addEventListener("click",function(){this.classList.toggle("on");state.settings.appConfirm=this.classList.contains("on");queueSave()});
-$("#saveAiBackend").addEventListener("click",()=>{state.settings.aiBackend=$("#aiBackendInput").value.trim().replace(/\/$/,"");localStorage.setItem("mars_jarvis_ai_backend",state.settings.aiBackend);queueSave();pushActivity("AI backend saved.");speak(state.settings.aiBackend?"KI-Backend gespeichert.":"KI-Backend entfernt.")});
 
-function renderAll(){renderNotes();renderTasks();updateStats()}
-function applySettingsToUI(){
- $("#swContinuous").classList.toggle("on",!!state.settings.continuous);$("#swSpeak").classList.toggle("on",state.settings.speak!==false);$("#swAppControl").classList.toggle("on",!!state.settings.appControl);$("#swAppConfirm").classList.toggle("on",state.settings.appConfirm!==false);
- muted=state.settings.speak===false;continuousMode=!!state.settings.continuous;$("#continuousToggle").classList.toggle("active",continuousMode);$("#muteBtn").classList.toggle("active",muted);$("#aiBackendInput").value=state.settings.aiBackend||"";
+$("#swContinuous").addEventListener(
+ "click",
+ function(){
+
+   this.classList.toggle(
+     "on"
+   );
+
+   state.settings.continuous=
+     this.classList.contains("on");
+
+   queueSave();
+
+   continuousMode=
+     state.settings.continuous;
+
+   $("#continuousToggle")
+     .classList
+     .toggle(
+       "active",
+       continuousMode
+     );
+
+   if(continuousMode)
+     startListening();
+   else
+     stopListening()
+ }
+);
+
+$("#swSpeak").addEventListener(
+ "click",
+ function(){
+
+   this.classList.toggle(
+     "on"
+   );
+
+   state.settings.speak=
+     this.classList.contains("on");
+
+   queueSave();
+
+   muted=
+     !state.settings.speak;
+
+   $("#muteBtn")
+     .classList
+     .toggle(
+       "active",
+       muted
+     )
+ }
+);
+
+$("#swAppControl").addEventListener(
+ "click",
+ function(){
+
+   this.classList.toggle(
+     "on"
+   );
+
+   state.settings.appControl=
+     this.classList.contains("on");
+
+   queueSave()
+ }
+);
+
+$("#swAppConfirm").addEventListener(
+ "click",
+ function(){
+
+   this.classList.toggle(
+     "on"
+   );
+
+   state.settings.appConfirm=
+     this.classList.contains("on");
+
+   queueSave()
+ }
+);
+
+$("#saveAiBackend").addEventListener(
+ "click",
+ ()=>{
+   state.settings.aiBackend=
+     $("#aiBackendInput")
+       .value
+       .trim()
+       .replace(/\/$/,"");
+
+   localStorage.setItem(
+     "mars_jarvis_ai_backend",
+     state.settings.aiBackend
+   );
+
+   queueSave();
+
+   pushActivity(
+     "AI backend saved."
+   );
+
+   speak(
+     state.settings.aiBackend
+       ?"KI-Backend gespeichert."
+       :"KI-Backend entfernt."
+   )
+ }
+);
+
+function renderAll(){
+ renderNotes();
+ renderTasks();
+ updateStats()
 }
-localLoad();applySettingsToUI();renderAll();renderChat();setupRecognition();
-setTimeout(()=>{document.getElementById("boot").style.opacity="0";setTimeout(()=>document.getElementById("boot").remove(),650)},900);
+
+function applySettingsToUI(){
+
+ $("#swContinuous")
+   .classList
+   .toggle(
+     "on",
+     !!state.settings.continuous
+   );
+
+ $("#swSpeak")
+   .classList
+   .toggle(
+     "on",
+     state.settings.speak!==false
+   );
+
+ $("#swAppControl")
+   .classList
+   .toggle(
+     "on",
+     !!state.settings.appControl
+   );
+
+ $("#swAppConfirm")
+   .classList
+   .toggle(
+     "on",
+     state.settings.appConfirm!==false
+   );
+
+ muted=
+   state.settings.speak===false;
+
+ continuousMode=
+   !!state.settings.continuous;
+
+ $("#continuousToggle")
+   .classList
+   .toggle(
+     "active",
+     continuousMode
+   );
+
+ $("#muteBtn")
+   .classList
+   .toggle(
+     "active",
+     muted
+   );
+
+ $("#aiBackendInput").value=
+   state.settings.aiBackend||""
+}
+
+localLoad();
+applySettingsToUI();
+renderAll();
+renderChat();
+setupRecognition();
+
+setTimeout(()=>{
+ document.getElementById("boot").style.opacity="0";
+
+ setTimeout(
+   ()=>document.getElementById("boot").remove(),
+   650
+ )
+},900);
+
 })();
 </script>
 </body>
-</html>
+</html>     
