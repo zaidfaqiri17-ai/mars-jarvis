@@ -92,7 +92,7 @@ Generiere tatsächlich ein Bild und keine reine Textantwort.
       `.trim();
 
       const imageResponse = await fetch(
-        "https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-image:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent",
         {
           method: "POST",
 
