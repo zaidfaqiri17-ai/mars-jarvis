@@ -287,35 +287,122 @@ function dedupe(t){
   if(p.length>=4&&p.length%2===0){const h=p.length/2;if(p.slice(0,h).join(" ").toLowerCase()===p.slice(h).join(" ").toLowerCase())return p.slice(0,h).join(" ")}
   return s;
 }
-async function handle(raw){
-  const cmd=dedupe(raw);if(!cmd)return;
-  $("#transcript").textContent=cmd;logV("u",cmd);
-  const l=cmd.toLowerCase();let m;
-  if((m=cmd.match(/^(?:notiz|note|merke|speichere notiz)[:\s]+(.+)/i))){addNote(m[1]);view("memory");speak("Ich habe die Notiz gespeichert.");return}
-  if((m=cmd.match(/^(?:aufgabe|task)[:\s]+(.+)/i))){
-    let t=m[1],p="med";const pm=t.match(/\b(hohe?r?|mittlere?r?|niedrige?r?|high|medium|low)\s*(?:priorität|priority)\b/i);
-    if(pm){const w=pm[1].toLowerCase();p=/^(h)/.test(w)?"high":/^(n|l)/.test(w)?"low":"med";t=t.replace(pm[0],"").trim()}
-    addTask(t,p);view("tasks");speak("Aufgabe hinzugefügt.");return
-  }
-  if(/^(zeige|zeig|show)\s+(meine\s+)?notizen?$/i.test(l)){view("memory");speak("Du hast "+S.notes.length+" Notizen.");return}
-  if(/^(zeige|zeig|show)\s+(meine\s+)?(aufgaben|tasks?)$/i.test(l)){view("tasks");speak("Du hast "+S.tasks.filter(t=>!t.done).length+" offene Aufgaben.");return}
-  if(OPEN.test(l)){const a=APPS.find(x=>x.re.test(l));if(a){askOpen(a);return}}
-  await askAI(cmd);
-}
 async function askAI(msg){
   const b=String(S.settings.aiBackend||"").trim();
-  if(!b){speak("Mein KI-Backend ist noch nicht eingerichtet. Trage die Adresse in den Einstellungen ein.");view("settings");return}
+
+  if(!b){
+    speak("Mein KI-Backend ist noch nicht eingerichtet. Trage die Adresse in den Einstellungen ein.");
+    view("settings");
+    return;
+  }
+
   try{
     $("#transcript").textContent="JARVIS denkt nach…";
-    let h=S.conversations.slice(-20);
-    if(h.length&&h[h.length-1].who==="you"&&h[h.length-1].text.trim()===msg.trim())h=h.slice(0,-1);
-    const r=await fetch(b.replace(/\/$/,"")+"/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg,conversation:h.map(x=>({role:x.who==="jarvis"?"assistant":"user",content:String(x.text)}))})});
-    if(!r.ok){let e="HTTP "+r.status;try{e=(await r.json()).error||e}catch(x){}throw new Error(e)}
-    const d=await r.json();
-    speak(String(d.reply||"Ich konnte gerade keine Antwort erzeugen.").trim());renderChat();
-  }catch(e){console.error(e);speak("Ich konnte den KI-Dienst nicht erreichen. Prüfe die Backend-Adresse.")}
-}
 
+    let h=S.conversations.slice(-20);
+
+    if(
+      h.length &&
+      h[h.length-1].who==="you" &&
+      h[h.length-1].text.trim()===msg.trim()
+    ){
+      h=h.slice(0,-1);
+    }
+
+    const r=await fetch(
+      b.replace(/\/$/,"")+"/api/chat",
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          message:msg,
+          conversation:h.map(x=>({
+            role:x.who==="jarvis"?"assistant":"user",
+            content:String(x.text)
+          }))
+        })
+      }
+    );
+
+    if(!r.ok){
+      let e="HTTP "+r.status;
+      try{
+        e=(await r.json()).error||e
+      }catch(x){}
+      throw new Error(e);
+    }
+
+    const d=await r.json();
+
+    /* ---------- BILD VON JARVIS ---------- */
+
+    if(
+      d.type==="image" &&
+      d.image &&
+      d.image.data
+    ){
+      const mime=d.image.mimeType||"image/png";
+
+      const imageSrc=
+        "data:"+mime+";base64,"+d.image.data;
+
+      const reply=
+        String(
+          d.reply||
+          "Das Bild wurde erstellt, Sir."
+        ).trim();
+
+      /*
+       * Bild direkt an die JARVIS-Nachricht hängen.
+       * Dadurch bleibt die normale Chat-Historie erhalten.
+       */
+      S.conversations.push({
+        who:"jarvis",
+        text:reply,
+        image:imageSrc,
+        ts:Date.now()
+      });
+
+      if(S.conversations.length>200){
+        S.conversations.shift();
+      }
+
+      queue();
+
+      $("#transcript").textContent=reply;
+
+      if(
+        S.settings.speak!==false &&
+        !muted
+      ){
+        speak(reply);
+      }
+
+      renderChat();
+      return;
+    }
+
+    /* ---------- NORMALE TEXTANTWORT ---------- */
+
+    speak(
+      String(
+        d.reply||
+        "Ich konnte gerade keine Antwort erzeugen."
+      ).trim()
+    );
+
+    renderChat();
+
+  }catch(e){
+    console.error(e);
+
+    speak(
+      "Ich konnte den KI-Dienst nicht erreichen. Prüfe die Backend-Adresse."
+    );
+  }
+} 
 /* ---------- Chat ---------- */
 function renderChat(){
   const b=$("#chatMsgs");b.innerHTML="";const it=S.conversations.slice(-30);
