@@ -394,5 +394,12 @@ lload();applyUI();renderAll();renderChat();setupRec();
 setTimeout(()=>{const b=$("#boot");b.style.opacity="0";setTimeout(()=>b.remove(),650);if(cont)setTimeout(listen,500)},800);
 })();
 </script>
+  <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js");
+  });
+}
+  </script>
 </body>
 </html>
