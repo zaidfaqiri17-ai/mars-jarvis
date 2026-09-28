@@ -1,3172 +1,396 @@
+!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MARS // JARVIS</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#020408;--panel:rgba(18,28,38,.6);--bd:rgba(79,209,255,.2);--cy:#4fd1ff;--cyd:#1c6f8c;--vi:#8c6bff;--am:#ffb454;--rd:#ff5470;--tx:#dbeeff;--dim:#7fa3b8}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%}
+body{background:radial-gradient(circle at 20% 10%,rgba(79,209,255,.08),transparent 40%),radial-gradient(circle at 85% 85%,rgba(140,107,255,.09),transparent 45%),var(--bg);color:var(--tx);font-family:'Rajdhani',sans-serif;font-size:16px}
+#boot{position:fixed;inset:0;z-index:300;background:var(--bg);display:flex;align-items:center;justify-content:center;font-family:Orbitron;letter-spacing:4px;color:var(--cy);font-size:13px;transition:opacity .6s}
+.shell{display:flex;min-height:100dvh}
+.side{width:84px;flex-shrink:0;border-right:1px solid var(--bd);background:rgba(8,14,22,.92);display:flex;flex-direction:column;align-items:center;gap:6px;padding:calc(16px + env(safe-area-inset-top,0px)) 0 16px}
+.nb{width:62px;height:54px;border-radius:12px;border:1px solid transparent;background:none;color:var(--dim);font:600 10px Rajdhani;letter-spacing:1px;cursor:pointer}
+.nb b{display:block;font-size:18px;font-weight:400}.nb.on{color:var(--cy);background:rgba(79,209,255,.1);border-color:var(--bd)}
+.main{flex:1;min-width:0;max-width:1100px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) 22px 90px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+h1{font:700 19px Orbitron;letter-spacing:2px;margin:0;color:#fff}.sub{color:var(--dim);font-size:13px}
+.pill{display:flex;align-items:center;gap:8px;padding:7px 13px;border:1px solid var(--bd);border-radius:99px;background:var(--panel);font-size:12px;color:var(--dim)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--rd)}.dot.on{background:#4dffa0}
+.panel{background:var(--panel);border:1px solid var(--bd);border-radius:16px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding:18px;margin-bottom:14px}
+h2{font:500 12px Orbitron;letter-spacing:2px;color:var(--cy);margin:0 0 12px}
+.view{display:none}.view.on{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.num{font:700 28px Orbitron;color:#fff}.lbl{font-size:11px;color:var(--dim);letter-spacing:1px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+input,textarea,select{flex:1;min-width:140px;background:rgba(6,10,16,.7);border:1px solid var(--bd);border-radius:10px;color:var(--tx);padding:10px 12px;font:15px Rajdhani;outline:none}
+button{font-family:Rajdhani;font-weight:600;cursor:pointer}
+.btn{background:rgba(79,209,255,.14);border:1px solid var(--bd);color:var(--cy);border-radius:10px;padding:10px 16px;font-size:14px}.btn.g{background:none;color:var(--dim)}
+.card{display:flex;justify-content:space-between;gap:10px;padding:12px 14px;margin-bottom:8px;background:rgba(6,10,16,.45);border:1px solid var(--bd);border-radius:12px}
+.card p{margin:0;word-break:break-word}.meta{font-size:11px;color:var(--dim);margin-top:3px}.x{width:30px;height:30px;border-radius:8px;border:1px solid var(--bd);background:none;color:var(--dim)}
+.pri{font-size:10px;padding:2px 7px;border-radius:99px;margin-right:6px}.high{background:rgba(255,84,112,.15);color:var(--rd)}.med{background:rgba(255,180,84,.15);color:var(--am)}.low{background:rgba(79,209,255,.12);color:var(--cy)}
+.done{opacity:.45;text-decoration:line-through}.empty{color:var(--dim);text-align:center;padding:16px;font-size:13px}
+.orb{width:140px;height:140px;border-radius:50%;margin:8px auto 14px;border:1px solid var(--bd);background:radial-gradient(circle at 35% 30%,rgba(79,209,255,.35),rgba(6,10,16,.9) 70%);transition:box-shadow .2s}
+.orb.l{box-shadow:0 0 40px rgba(79,209,255,.5)}
+.ctl{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}.rb{width:60px;height:52px;border-radius:26px;border:1px solid var(--bd);background:var(--panel);color:var(--tx);font-size:12px}.rb.on{border-color:var(--cy);color:var(--cy)}
+#transcript{text-align:center;color:var(--dim);font-size:14px;min-height:40px;margin:0 0 14px}
+.log,.feed{max-height:260px;overflow-y:auto;font-size:13px}.lr{padding:7px 9px;margin-bottom:6px;border-radius:8px;background:rgba(6,10,16,.45)}.lr b{color:var(--cy);margin-right:6px}.lr.j b{color:var(--vi)}
+#chatMsgs{height:min(58vh,520px);overflow-y:auto;display:flex;flex-direction:column;gap:9px;margin-bottom:10px}
+.m{max-width:86%;padding:10px 12px;border-radius:12px;border:1px solid var(--bd);white-space:pre-wrap;word-break:break-word;font-size:14px}.m.u{align-self:flex-end;background:rgba(79,209,255,.08)}.m.j{align-self:flex-start;background:rgba(140,107,255,.08)}
+.sw{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(79,209,255,.08)}
+.tg{width:44px;height:25px;border-radius:99px;border:1px solid var(--bd);background:rgba(79,209,255,.15);position:relative;cursor:pointer;flex-shrink:0}.tg:after{content:"";position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:#fff;transition:.2s}.tg.on{background:var(--cyd)}.tg.on:after{transform:translateX(19px)}
+.hint{font-size:12px;color:var(--dim);margin:6px 0;line-height:1.5}.lab{display:block;font-size:12px;color:var(--dim);margin:8px 0 5px}
+.apps{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:10px}.apps button{padding:12px;border-radius:10px;border:1px solid var(--bd);background:rgba(6,10,16,.5);color:var(--cy)}
+#cb{display:none;position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:200;padding:14px;background:#0b1622;border:1px solid rgba(255,180,84,.5);border-radius:14px}
+#cb.on{display:block}#cb span{display:block;margin-bottom:10px;font-size:15px}
+@media(max-width:720px){.shell{flex-direction:column}.side{width:100%;flex-direction:row;justify-content:space-around;padding:calc(8px + env(safe-area-inset-top,0px)) 4px 8px;position:sticky;top:0;z-index:20}.nb{width:auto;flex:1;height:48px}.main{padding:14px 14px 90px}}
+</style>
+</head>
+<body>
+<div id="boot">INITIALIZING MARS JARVIS</div>
+<div class="shell">
+<nav class="side">
+<button class="nb on" data-v="home"><b>⌂</b>HOME</button>
+<button class="nb" data-v="memory"><b>✎</b>NOTIZEN</button>
+<button class="nb" data-v="tasks"><b>✓</b>TASKS</button>
+<button class="nb" data-v="voice"><b>◉</b>VOICE</button>
+<button class="nb" data-v="chat"><b>✉</b>CHAT</button>
+<button class="nb" data-v="settings"><b>⚙</b>SETUP</button>
+</nav>
+<main class="main">
+<div class="top"><div><h1 id="vt">HOME</h1><div class="sub" id="vs">Systemübersicht</div></div>
+<div style="display:flex;gap:8px;align-items:center"><div class="pill"><span class="dot" id="dd"></span><span id="ds">Drive offline</span></div><button class="btn" id="auth">Sign in</button></div></div>
+
+<section class="view on" id="v-home">
+<div class="grid"><div class="panel"><div class="num" id="sN">0</div><div class="lbl">NOTIZEN</div></div><div class="panel"><div class="num" id="sO">0</div><div class="lbl">OFFENE TASKS</div></div><div class="panel"><div class="num" id="sD">0</div><div class="lbl">ERLEDIGT</div></div></div>
+<div class="panel"><h2>AKTIVITÄT</h2><div class="feed" id="feed"><div class="empty">Noch nichts passiert. Probiere den Voice-Bereich.</div></div></div>
+</section>
+
+<section class="view" id="v-memory"><div class="panel"><h2>NOTIZEN</h2>
+<div class="row"><input id="nIn" placeholder="Neue Notiz…"><button class="btn" id="nAdd">Speichern</button></div>
+<input id="nSe" placeholder="Suchen…" style="width:100%;margin-bottom:12px"><div id="nList"></div></div></section>
+
+<section class="view" id="v-tasks"><div class="panel"><h2>AUFGABEN</h2>
+<div class="row"><input id="tIn" placeholder="Neue Aufgabe…"><select id="tPr" style="flex:0 0 120px"><option value="high">Hoch</option><option value="med" selected>Mittel</option><option value="low">Niedrig</option></select><button class="btn" id="tAdd">Hinzufügen</button></div>
+<div id="tList"></div></div></section>
+
+<section class="view" id="v-voice"><div class="panel"><h2>VOICE CONSOLE</h2>
+<div class="orb" id="orb"></div><p id="transcript">Tippe auf Push-to-Talk oder schalte Dauerhören ein.</p>
+<div class="ctl"><button class="rb" id="ptt">HALTEN</button><button class="rb" id="cont">DAUER</button><button class="rb" id="mute">STUMM</button></div>
+<h2 style="margin-top:18px">VERLAUF</h2><div class="log" id="vlog"></div></div></section>
+
+<section class="view" id="v-chat"><div class="panel"><h2>JARVIS CHAT</h2><div id="chatMsgs"></div>
+<div class="row" style="margin:0"><textarea id="cIn" rows="1" placeholder="Schreibe JARVIS etwas…"></textarea><button class="btn" id="cSend">SENDEN</button></div></div></section>
+
+<section class="view" id="v-settings">
+<div class="panel"><h2>KI-BACKEND</h2><label class="lab">Adresse deines Vercel-Backends</label><input id="aiIn" type="url" placeholder="https://dein-backend.vercel.app"><p class="hint">Nur die Adresse eintragen, ohne /api/chat. Niemals einen API-Key hier eintragen.</p><button class="btn" id="aiSave">Speichern</button></div>
+<div class="panel"><h2>APPS ÖFFNEN</h2><div class="sw"><span>App-Steuerung aktiv</span><div class="tg" id="tgApp"></div></div>
+<p class="hint">Sag zum Beispiel „Öffne YouTube“. Danach erscheint unten ein Knopf, den du einmal antippst. Das Handy erlaubt das Öffnen einer App nur nach einer Berührung.</p>
+<div class="apps" id="appBtns"></div></div>
+<div class="panel"><h2>GOOGLE DRIVE</h2><label class="lab">OAuth Client ID</label><input id="cid" placeholder="xxxx.apps.googleusercontent.com"><br><br><button class="btn" id="cidSave">Speichern &amp; anmelden</button></div>
+<div class="panel"><h2>STIMME</h2><div class="sw"><span>Dauerhören beim Start</span><div class="tg" id="tgCont"></div></div><div class="sw"><span>Gesprochene Antworten</span><div class="tg" id="tgSpeak"></div></div></div>
+</section>
+</main></div>
+<div id="cb"><span id="cbT"></span><button class="btn" id="cbY">Öffnen</button> <button class="btn g" id="cbN">Abbrechen</button></div>
+
 <script>
 (function(){
 "use strict";
+const D={notes:[],tasks:[],settings:{continuous:false,speak:true,appControl:true,aiBackend:""},conversations:[]};
+let S=structuredClone(D),fileId=null,token=null,saveT=null,pending=null;
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+const esc=s=>{const d=document.createElement("div");d.textContent=String(s==null?"":s);return d.innerHTML};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const cut=(s,n)=>s.length>n?s.slice(0,n)+"…":s;
+const fmt=t=>new Date(t).toLocaleString("de-DE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+const android=/Android/i.test(navigator.userAgent||"");
 
-/* =========================================================
-   MARS // JARVIS
-   COMPLETE REPAIRED CORE
-   ========================================================= */
-
-const DEFAULT_DATA={
-  notes:[],
-  tasks:[],
-  research:[],
-  settings:{
-    continuous:false,
-    speak:true,
-    appControl:true,
-    appConfirm:false,
-    aiBackend:""
-  },
-  conversations:[]
-};
-
-let state=structuredClone(DEFAULT_DATA);
-
-let driveFileId=null;
-let accessToken=null;
-let gisClient=null;
-let saveTimer=null;
-let pendingAction=null;
-
-const $=s=>document.querySelector(s);
-const $$=s=>document.querySelectorAll(s);
-
-
-/* =========================================================
-   BASIC HELPERS
-   ========================================================= */
-
-function uid(){
-  return Date.now().toString(36)+
-    Math.random().toString(36).slice(2,7);
+/* ---------- Speichern ---------- */
+function norm(){
+  S=Object.assign(structuredClone(D),S);
+  S.settings=Object.assign(structuredClone(D.settings),S.settings||{});
+  ["notes","tasks","conversations"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
 }
-
-function nowStr(){
-  return new Date().toLocaleString("de-DE",{
-    month:"short",
-    day:"numeric",
-    hour:"2-digit",
-    minute:"2-digit"
-  });
+function lsave(){try{localStorage.setItem("mars_jarvis_data",JSON.stringify(S));localStorage.setItem("mars_jarvis_client_id",$("#cid").value||"")}catch(e){}}
+function lload(){
+  try{const r=localStorage.getItem("mars_jarvis_data");if(r)S=JSON.parse(r)}catch(e){}
+  norm();
+  try{const c=localStorage.getItem("mars_jarvis_client_id");if(c)$("#cid").value=c;const a=localStorage.getItem("mars_jarvis_ai_backend");if(a)S.settings.aiBackend=a}catch(e){}
 }
+function queue(){clearTimeout(saveT);saveT=setTimeout(dsave,600)}
 
-function truncate(s,n){
-  s=String(s||"");
-  return s.length>n?s.slice(0,n)+"…":s;
-}
-
-function escapeHtml(s){
-  const d=document.createElement("div");
-  d.textContent=String(s||"");
-  return d.innerHTML;
-}
-
-
-/* =========================================================
-   LOCAL STORAGE
-   ========================================================= */
-
-function localSave(){
-
-  try{
-
-    localStorage.setItem(
-      "mars_jarvis_data",
-      JSON.stringify(state)
-    );
-
-    const clientInput=$("#clientIdInput");
-
-    if(clientInput){
-
-      localStorage.setItem(
-        "mars_jarvis_client_id",
-        clientInput.value||""
-      );
-    }
-
-  }catch(e){
-
-    console.error(
-      "Local save error:",
-      e
-    );
-  }
-}
-
-function localLoad(){
-
-  try{
-
-    const raw=
-      localStorage.getItem(
-        "mars_jarvis_data"
-      );
-
-    if(raw){
-
-      const parsed=
-        JSON.parse(raw);
-
-      state=Object.assign(
-        structuredClone(DEFAULT_DATA),
-        parsed
-      );
-    }
-
-  }catch(e){
-
-    console.error(
-      "Local load error:",
-      e
-    );
-
-    state=structuredClone(
-      DEFAULT_DATA
-    );
-  }
-
-  if(!state.settings){
-
-    state.settings=
-      structuredClone(
-        DEFAULT_DATA.settings
-      );
-
-  }else{
-
-    state.settings=
-      Object.assign(
-        structuredClone(
-          DEFAULT_DATA.settings
-        ),
-        state.settings
-      );
-  }
-
-  if(!Array.isArray(state.notes))
-    state.notes=[];
-
-  if(!Array.isArray(state.tasks))
-    state.tasks=[];
-
-  if(!Array.isArray(state.research))
-    state.research=[];
-
-  if(!Array.isArray(state.conversations))
-    state.conversations=[];
-
-  try{
-
-    const cid=
-      localStorage.getItem(
-        "mars_jarvis_client_id"
-      );
-
-    if(
-      cid&&
-      $("#clientIdInput")
-    ){
-
-      $("#clientIdInput").value=cid;
-    }
-
-  }catch(e){}
-
-  try{
-
-    const ai=
-      localStorage.getItem(
-        "mars_jarvis_ai_backend"
-      );
-
-    if(ai){
-
-      state.settings.aiBackend=ai;
-    }
-
-    if($("#aiBackendInput")){
-
-      $("#aiBackendInput").value=
-        state.settings.aiBackend||"";
-    }
-
-  }catch(e){}
-}
-
-
-/* =========================================================
-   GOOGLE DRIVE
-   ========================================================= */
-
-function setDriveStatus(connected,label){
-
-  if($("#driveDot")){
-
-    $("#driveDot").classList.toggle(
-      "on",
-      !!connected
-    );
-  }
-
-  if($("#driveStatus")){
-
-    $("#driveStatus").textContent=
-      label||
-      (
-        connected
-        ?"Drive connected"
-        :"Drive offline"
-      );
-  }
-
-  if($("#authBtn")){
-
-    $("#authBtn").textContent=
-      connected
-      ?"Sign out"
-      :"Sign in";
-  }
-}
-
-function loadGis(cb){
-
-  if(
-    window.google&&
-    google.accounts
-  ){
-
-    cb();
-    return;
-  }
-
-  const s=
-    document.createElement("script");
-
-  s.src=
-    "https://accounts.google.com/gsi/client";
-
-  s.async=true;
-
-  s.onload=cb;
-
-  s.onerror=()=>{
-
-    setDriveStatus(
-      false,
-      "Google Sign-In unavailable"
-    );
-  };
-
-  document.head.appendChild(s);
-}
-
+/* ---------- Google Drive ---------- */
+function dstat(on,l){$("#dd").classList.toggle("on",!!on);$("#ds").textContent=l||(on?"Drive verbunden":"Drive offline");$("#auth").textContent=on?"Sign out":"Sign in"}
+function gis(cb){if(window.google&&google.accounts){cb();return}const s=document.createElement("script");s.src="https://accounts.google.com/gsi/client";s.async=true;s.onload=cb;s.onerror=()=>dstat(false,"Google nicht erreichbar");document.head.appendChild(s)}
 function initAuth(){
-
-  const input=
-    $("#clientIdInput");
-
-  const clientId=
-    input
-    ?input.value.trim()
-    :"";
-
-  if(!clientId){
-
-    alert(
-      "Add your Google OAuth Client ID in Settings first."
-    );
-
-    switchView("settings");
-
-    return;
-  }
-
-  loadGis(()=>{
-
-    gisClient=
-      google.accounts.oauth2.initTokenClient({
-
-        client_id:clientId,
-
-        scope:
-          "https://www.googleapis.com/auth/drive.appdata",
-
-        callback:async resp=>{
-
-          if(resp.error){
-
-            console.error(
-              "Google authentication error:",
-              resp
-            );
-
-            setDriveStatus(
-              false,
-              "Auth failed"
-            );
-
-            return;
-          }
-
-          accessToken=
-            resp.access_token;
-
-          setDriveStatus(
-            true,
-            "Drive connected"
-          );
-
-          try{
-
-            await driveFindOrCreateFile();
-            await driveLoad();
-
-            renderAll();
-            renderChat();
-
-          }catch(e){
-
-            console.error(
-              "Drive initialization error:",
-              e
-            );
-
-            setDriveStatus(
-              false,
-              "Drive error"
-            );
-          }
-        }
-      });
-
-    gisClient.requestAccessToken();
+  const id=$("#cid").value.trim();
+  if(!id){alert("Trage zuerst deine OAuth Client ID ein.");view("settings");return}
+  gis(()=>{
+    google.accounts.oauth2.initTokenClient({client_id:id,scope:"https://www.googleapis.com/auth/drive.appdata",
+      callback:async r=>{
+        if(r.error){dstat(false,"Anmeldung fehlgeschlagen");return}
+        token=r.access_token;dstat(true);
+        try{await dfind();await dload();renderAll();renderChat()}catch(e){dstat(false,"Drive-Fehler")}
+      }}).requestAccessToken();
   });
 }
+async function dapi(p,o={}){
+  const r=await fetch("https://www.googleapis.com"+p,Object.assign({},o,{headers:Object.assign({},o.headers||{},{Authorization:"Bearer "+token})}));
+  if(!r.ok)throw new Error("Drive "+r.status);return r;
+}
+async function dfind(){
+  const q=encodeURIComponent("name='jarvis-data.json' and trashed=false");
+  const l=await(await dapi("/drive/v3/files?spaces=appDataFolder&q="+q+"&fields=files(id)")).json();
+  if(l.files&&l.files.length){fileId=l.files[0].id;return}
+  const c=await dapi("/drive/v3/files?fields=id",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:"jarvis-data.json",parents:["appDataFolder"]})});
+  fileId=(await c.json()).id;await dsave();
+}
+async function dload(){
+  if(!fileId)return;
+  try{const t=await(await dapi("/drive/v3/files/"+fileId+"?alt=media")).text();if(t){S=JSON.parse(t);norm();lsave();applyUI()}}catch(e){console.error(e)}
+}
+async function dsave(){
+  lsave();if(!token||!fileId)return;
+  try{await dapi("/upload/drive/v3/files/"+fileId+"?uploadType=media",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(S)})}catch(e){console.error(e)}
+}
+$("#auth").onclick=()=>{if(token){token=null;fileId=null;dstat(false)}else initAuth()};
+$("#cidSave").onclick=()=>{lsave();initAuth()};
 
-async function driveApi(path,opts={}){
-
-  const res=
-    await fetch(
-      "https://www.googleapis.com"+path,
-      Object.assign(
-        {},
-        opts,
-        {
-          headers:Object.assign(
-            {},
-            opts.headers||{},
-            {
-              Authorization:
-                "Bearer "+accessToken
-            }
-          )
-        }
-      )
-    );
-
-  if(!res.ok){
-
-    throw new Error(
-      "Drive API error "+res.status
-    );
-  }
-
-  return res;
+/* ---------- Ansichten ---------- */
+const T={home:["HOME","Systemübersicht"],memory:["NOTIZEN","Dein Archiv"],tasks:["TASKS","Aufgabenliste"],voice:["VOICE","Sprich mit JARVIS"],chat:["CHAT","Textunterhaltung"],settings:["SETUP","Einstellungen"]};
+function view(n){
+  $$(".nb").forEach(b=>b.classList.toggle("on",b.dataset.v===n));
+  $$(".view").forEach(v=>v.classList.toggle("on",v.id==="v-"+n));
+  $("#vt").textContent=T[n][0];$("#vs").textContent=T[n][1];
+  if(n==="chat")renderChat();
+}
+$$(".nb").forEach(b=>b.onclick=()=>view(b.dataset.v));
+function feed(t){
+  const f=$("#feed");if(f.querySelector(".empty"))f.innerHTML="";
+  const d=document.createElement("div");d.className="lr";d.innerHTML="<b>"+fmt(Date.now())+"</b>"+esc(t);
+  f.prepend(d);while(f.children.length>8)f.removeChild(f.lastChild);
 }
 
-async function driveFindOrCreateFile(){
-
-  const q=
-    encodeURIComponent(
-      "name='jarvis-data.json' and trashed=false"
-    );
-
-  const listRes=
-    await driveApi(
-      "/drive/v3/files?spaces=appDataFolder&q="+
-      q+
-      "&fields=files(id,name)"
-    );
-
-  const list=
-    await listRes.json();
-
-  if(
-    list.files&&
-    list.files.length
-  ){
-
-    driveFileId=
-      list.files[0].id;
-
-  }else{
-
-    const meta={
-      name:"jarvis-data.json",
-      parents:["appDataFolder"]
-    };
-
-    const createRes=
-      await driveApi(
-        "/drive/v3/files?fields=id",
-        {
-          method:"POST",
-
-          headers:{
-            "Content-Type":
-              "application/json"
-          },
-
-          body:JSON.stringify(meta)
-        }
-      );
-
-    driveFileId=
-      (await createRes.json()).id;
-
-    await driveSave();
-  }
-}
-
-async function driveLoad(){
-
-  if(!driveFileId)return;
-
-  try{
-
-    const res=
-      await driveApi(
-        "/drive/v3/files/"+
-        driveFileId+
-        "?alt=media"
-      );
-
-    const text=
-      await res.text();
-
-    if(text){
-
-      state=Object.assign(
-        structuredClone(DEFAULT_DATA),
-        JSON.parse(text)
-      );
-
-      state.settings=
-        Object.assign(
-          structuredClone(
-            DEFAULT_DATA.settings
-          ),
-          state.settings||{}
-        );
-
-      if(!Array.isArray(state.notes))
-        state.notes=[];
-
-      if(!Array.isArray(state.tasks))
-        state.tasks=[];
-
-      if(!Array.isArray(state.conversations))
-        state.conversations=[];
-
-      localSave();
-      applySettingsToUI();
-    }
-
-  }catch(e){
-
-    console.error(
-      "Drive load error:",
-      e
-    );
-  }
-}
-
-async function driveSave(){
-
-  localSave();
-
-  if(
-    !accessToken||
-    !driveFileId
-  ){
-    return;
-  }
-
-  try{
-
-    await driveApi(
-      "/upload/drive/v3/files/"+
-      driveFileId+
-      "?uploadType=media",
-      {
-        method:"PATCH",
-
-        headers:{
-          "Content-Type":
-            "application/json"
-        },
-
-        body:JSON.stringify(state)
-      }
-    );
-
-  }catch(e){
-
-    console.error(
-      "Drive save error:",
-      e
-    );
-  }
-}
-
-function queueSave(){
-
-  clearTimeout(saveTimer);
-
-  saveTimer=
-    setTimeout(
-      driveSave,
-      600
-    );
-}
-
-function signOut(){
-
-  accessToken=null;
-  driveFileId=null;
-
-  setDriveStatus(
-    false,
-    "Drive offline"
-  );
-}
-
-if($("#authBtn")){
-
-  $("#authBtn").addEventListener(
-    "click",
-    ()=>{
-      accessToken
-        ?signOut()
-        :initAuth();
-    }
-  );
-}
-
-if($("#signOutBtn")){
-
-  $("#signOutBtn").addEventListener(
-    "click",
-    signOut
-  );
-}
-
-if($("#saveClientId")){
-
-  $("#saveClientId").addEventListener(
-    "click",
-    ()=>{
-      localSave();
-      initAuth();
-    }
-  );
-}
-
-
-/* =========================================================
-   NAVIGATION
-   ========================================================= */
-
-const titles={
-  home:["HOME","System overview"],
-  memory:["MEMORY","Notes archive"],
-  tasks:["TASKS","Mission queue"],
-  voice:["VOICE CONSOLE","Speak to JARVIS"],
-  chat:["JARVIS CHAT","Text conversation"],
-  settings:["SETTINGS","Configuration"]
-};
-
-function switchView(name){
-
-  if(!titles[name])
-    name="home";
-
-  $$(".nav-btn").forEach(
-    b=>{
-      b.classList.toggle(
-        "active",
-        b.dataset.view===name
-      );
-    }
-  );
-
-  $$(".view").forEach(
-    v=>{
-      v.classList.toggle(
-        "active",
-        v.id==="view-"+name
-      );
-    }
-  );
-
-  if($("#viewTitle"))
-    $("#viewTitle").textContent=
-      titles[name][0];
-
-  if($("#viewSub"))
-    $("#viewSub").textContent=
-      titles[name][1];
-}
-
-$$(".nav-btn").forEach(
-  b=>{
-    b.addEventListener(
-      "click",
-      ()=>{
-        switchView(
-          b.dataset.view
-        );
-      }
-    );
-  }
-);
-
-
-/* =========================================================
-   ACTIVITY
-   ========================================================= */
-
-function pushActivity(text){
-
-  const feed=
-    $("#activityFeed");
-
-  if(!feed)return;
-
-  if(feed.querySelector(".empty")){
-    feed.innerHTML="";
-  }
-
-  const row=
-    document.createElement("div");
-
-  row.className="feed-item";
-
-  row.innerHTML=
-    "<b>"+
-    nowStr()+
-    "</b> — "+
-    escapeHtml(text);
-
-  feed.prepend(row);
-
-  while(feed.children.length>8){
-
-    feed.removeChild(
-      feed.lastChild
-    );
-  }
-}
-
-
-/* =========================================================
-   NOTES
-   ========================================================= */
-
-function renderNotes(filter){
-
-  const list=
-    $("#notesList");
-
-  if(!list)return;
-
-  list.innerHTML="";
-
-  const f=
-    (filter||"").toLowerCase();
-
-  const items=
-    state.notes
-      .filter(
-        n=>
-          !f||
-          String(n.text||"")
-            .toLowerCase()
-            .includes(f)
-      )
-      .sort(
-        (a,b)=>b.ts-a.ts
-      );
-
-  if(!items.length){
-
-    list.innerHTML=
-      '<div class="empty">No notes yet.</div>';
-
-    return;
-  }
-
-  items.forEach(n=>{
-
-    const card=
-      document.createElement("div");
-
-    card.className=
-      "item-card";
-
-    card.innerHTML=
-      '<div class="body">'+
-      '<p contenteditable="true" class="editable">'+
-      escapeHtml(n.text)+
-      '</p>'+
-      '<div class="meta">'+
-      new Date(n.ts).toLocaleString(
-        "de-DE",
-        {
-          month:"short",
-          day:"numeric",
-          hour:"2-digit",
-          minute:"2-digit"
-        }
-      )+
-      '</div>'+
-      '</div>'+
-      '<div class="actions">'+
-      '<button class="icon-btn" data-act="del" title="Delete">×</button>'+
-      '</div>';
-
-    card
-      .querySelector(".editable")
-      .addEventListener(
-        "blur",
-        e=>{
-
-          n.text=
-            e.target.textContent.trim();
-
-          queueSave();
-        }
-      );
-
-    card
-      .querySelector(
-        "[data-act=del]"
-      )
-      .addEventListener(
-        "click",
-        ()=>{
-
-          state.notes=
-            state.notes.filter(
-              x=>x.id!==n.id
-            );
-
-          renderNotes(
-            $("#noteSearch")?.value
-          );
-
-          updateStats();
-          queueSave();
-        }
-      );
-
-    list.appendChild(card);
+/* ---------- Notizen & Aufgaben ---------- */
+function stats(){$("#sN").textContent=S.notes.length;$("#sO").textContent=S.tasks.filter(t=>!t.done).length;$("#sD").textContent=S.tasks.filter(t=>t.done).length}
+function renderNotes(){
+  const f=($("#nSe").value||"").toLowerCase(),l=$("#nList");l.innerHTML="";
+  const it=S.notes.filter(n=>!f||n.text.toLowerCase().includes(f)).sort((a,b)=>b.ts-a.ts);
+  if(!it.length){l.innerHTML='<div class="empty">Keine Notizen.</div>';return}
+  it.forEach(n=>{
+    const c=document.createElement("div");c.className="card";
+    c.innerHTML='<div><p contenteditable="true">'+esc(n.text)+'</p><div class="meta">'+fmt(n.ts)+'</div></div><button class="x">×</button>';
+    c.querySelector("p").onblur=e=>{n.text=e.target.textContent.trim();queue()};
+    c.querySelector(".x").onclick=()=>{S.notes=S.notes.filter(x=>x.id!==n.id);renderNotes();stats();queue()};
+    l.appendChild(c);
   });
 }
-
-function addNote(text){
-
-  text=
-    String(text||"").trim();
-
-  if(!text)return null;
-
-  const n={
-    id:uid(),
-    text,
-    ts:Date.now()
-  };
-
-  state.notes.push(n);
-
-  renderNotes();
-  updateStats();
-  queueSave();
-
-  pushActivity(
-    'Note saved: "'+
-    truncate(text,40)+
-    '"'
-  );
-
-  return n;
-}
-
-if($("#addNoteBtn")){
-
-  $("#addNoteBtn").addEventListener(
-    "click",
-    ()=>{
-      addNote(
-        $("#noteInput").value
-      );
-
-      $("#noteInput").value="";
-    }
-  );
-}
-
-if($("#noteInput")){
-
-  $("#noteInput").addEventListener(
-    "keydown",
-    e=>{
-
-      if(e.key==="Enter"){
-
-        addNote(e.target.value);
-
-        e.target.value="";
-      }
-    }
-  );
-}
-
-if($("#noteSearch")){
-
-  $("#noteSearch").addEventListener(
-    "input",
-    e=>{
-      renderNotes(
-        e.target.value
-      );
-    }
-  );
-}
-
-
-/* =========================================================
-   TASKS
-   ========================================================= */
-
+function addNote(t){t=String(t||"").trim();if(!t)return;S.notes.push({id:uid(),text:t,ts:Date.now()});renderNotes();stats();queue();feed("Notiz gespeichert: "+cut(t,40))}
 function renderTasks(){
-
-  const list=
-    $("#tasksList");
-
-  if(!list)return;
-
-  list.innerHTML="";
-
-  const order={
-    high:0,
-    med:1,
-    low:2
-  };
-
-  const items=
-    [...state.tasks].sort(
-      (a,b)=>
-        (a.done-b.done)||
-        (order[a.priority]-
-         order[b.priority])||
-        (b.ts-a.ts)
-    );
-
-  if(!items.length){
-
-    list.innerHTML=
-      '<div class="empty">No tasks yet.</div>';
-
-    return;
-  }
-
-  items.forEach(t=>{
-
-    const card=
-      document.createElement("div");
-
-    card.className=
-      "item-card";
-
-    const priLabel={
-      high:"HIGH",
-      med:"MED",
-      low:"LOW"
-    }[t.priority]||"MED";
-
-    card.innerHTML=
-      '<div class="body">'+
-      '<p class="'+
-      (t.done?"done":"")+
-      '">'+
-      '<span class="pri '+
-      t.priority+
-      '">'+
-      priLabel+
-      "</span>"+
-      escapeHtml(t.text)+
-      '</p>'+
-      '<div class="meta">'+
-      new Date(t.ts).toLocaleString(
-        "de-DE",
-        {
-          month:"short",
-          day:"numeric",
-          hour:"2-digit",
-          minute:"2-digit"
-        }
-      )+
-      '</div>'+
-      '</div>'+
-      '<div class="actions">'+
-      '<button class="icon-btn" data-act="done">✓</button>'+
-      '<button class="icon-btn" data-act="del">×</button>'+
-      '</div>';
-
-    card
-      .querySelector(
-        "[data-act=done]"
-      )
-      .addEventListener(
-        "click",
-        ()=>{
-
-          t.done=!t.done;
-
-          renderTasks();
-          updateStats();
-          queueSave();
-
-          pushActivity(
-            (
-              t.done
-              ?'Task completed: "'
-              :'Task reopened: "'
-            )+
-            truncate(t.text,40)+
-            '"'
-          );
-        }
-      );
-
-    card
-      .querySelector(
-        "[data-act=del]"
-      )
-      .addEventListener(
-        "click",
-        ()=>{
-
-          state.tasks=
-            state.tasks.filter(
-              x=>x.id!==t.id
-            );
-
-          renderTasks();
-          updateStats();
-          queueSave();
-        }
-      );
-
-    list.appendChild(card);
+  const l=$("#tList");l.innerHTML="";const o={high:0,med:1,low:2};
+  const it=[...S.tasks].sort((a,b)=>(a.done-b.done)||(o[a.priority]-o[b.priority])||(b.ts-a.ts));
+  if(!it.length){l.innerHTML='<div class="empty">Keine Aufgaben.</div>';return}
+  it.forEach(t=>{
+    const c=document.createElement("div");c.className="card";
+    c.innerHTML='<div><p class="'+(t.done?"done":"")+'"><span class="pri '+t.priority+'">'+({high:"HOCH",med:"MITTEL",low:"NIEDRIG"}[t.priority]||"MITTEL")+'</span>'+esc(t.text)+'</p><div class="meta">'+fmt(t.ts)+'</div></div><div><button class="x" data-a="d">✓</button> <button class="x" data-a="x">×</button></div>';
+    c.querySelector('[data-a="d"]').onclick=()=>{t.done=!t.done;renderTasks();stats();queue()};
+    c.querySelector('[data-a="x"]').onclick=()=>{S.tasks=S.tasks.filter(x=>x.id!==t.id);renderTasks();stats();queue()};
+    l.appendChild(c);
   });
 }
+function addTask(t,p){t=String(t||"").trim();if(!t)return;S.tasks.push({id:uid(),text:t,priority:p||"med",done:false,ts:Date.now()});renderTasks();stats();queue();feed("Aufgabe hinzugefügt: "+cut(t,40))}
+$("#nAdd").onclick=()=>{addNote($("#nIn").value);$("#nIn").value=""};
+$("#nIn").onkeydown=e=>{if(e.key==="Enter"){addNote(e.target.value);e.target.value=""}};
+$("#nSe").oninput=renderNotes;
+$("#tAdd").onclick=()=>{addTask($("#tIn").value,$("#tPr").value);$("#tIn").value=""};
+$("#tIn").onkeydown=e=>{if(e.key==="Enter"){addTask(e.target.value,$("#tPr").value);e.target.value=""}};
 
-function addTask(text,priority){
-
-  text=
-    String(text||"").trim();
-
-  if(!text)return null;
-
-  const t={
-    id:uid(),
-    text,
-    priority:priority||"med",
-    done:false,
-    ts:Date.now()
-  };
-
-  state.tasks.push(t);
-
-  renderTasks();
-  updateStats();
-  queueSave();
-
-  pushActivity(
-    'Task added: "'+
-    truncate(text,40)+
-    '"'
-  );
-
-  return t;
+/* ---------- Sprachausgabe ---------- */
+const syn=window.speechSynthesis;
+let voices=[],speaking=false,muted=false,cont=false,busy=false,ptt=false,rec=null,buf="",tmr=null;
+function loadV(){try{const v=syn.getVoices();if(v&&v.length)voices=v}catch(e){}}
+if(syn){loadV();syn.addEventListener("voiceschanged",loadV)}
+function deVoice(){loadV();return voices.find(v=>/^de-DE/i.test(v.lang))||voices.find(v=>/^de/i.test(v.lang))||null}
+function say(t){return String(t).replace(/[*_`#>~]/g,"").replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/gu,"").trim()}
+function logV(who,t){
+  const l=$("#vlog"),r=document.createElement("div");r.className="lr"+(who==="j"?" j":"");
+  r.innerHTML="<b>"+(who==="j"?"JARVIS":"DU")+"</b>"+esc(t);l.prepend(r);while(l.children.length>20)l.removeChild(l.lastChild);
+  S.conversations.push({who:who==="j"?"jarvis":"you",text:t,ts:Date.now()});if(S.conversations.length>200)S.conversations.shift();queue();
 }
-
-if($("#addTaskBtn")){
-
-  $("#addTaskBtn").addEventListener(
-    "click",
-    ()=>{
-      addTask(
-        $("#taskInput").value,
-        $("#taskPriority").value
-      );
-
-      $("#taskInput").value="";
-    }
-  );
-}
-
-if($("#taskInput")){
-
-  $("#taskInput").addEventListener(
-    "keydown",
-    e=>{
-
-      if(e.key==="Enter"){
-
-        addTask(
-          e.target.value,
-          $("#taskPriority").value
-        );
-
-        e.target.value="";
-      }
-    }
-  );
-}
-
-function updateStats(){
-
-  if($("#statNotes"))
-    $("#statNotes").textContent=
-      state.notes.length;
-
-  if($("#statTasksOpen"))
-    $("#statTasksOpen").textContent=
-      state.tasks.filter(
-        t=>!t.done
-      ).length;
-
-  if($("#statTasksDone"))
-    $("#statTasksDone").textContent=
-      state.tasks.filter(
-        t=>t.done
-      ).length;
-}
-
-
-/* =========================================================
-   SPEECH OUTPUT
-   ========================================================= */
-
-let jarvisSpeaking=false;
-let speechVoices=[];
-let muted=false;
-
-function refreshSpeechVoices(){
-
-  if(!("speechSynthesis" in window)){
-    speechVoices=[];
-    return;
-  }
-
-  try{
-
-    const voices=
-      window.speechSynthesis.getVoices();
-
-    if(voices&&voices.length){
-      speechVoices=voices;
-    }
-
-  }catch(e){}
-}
-
-function unlockSpeech(){
-
-  if(!("speechSynthesis" in window))
-    return;
-
-  try{
-    window.speechSynthesis.resume();
-  }catch(e){}
-}
-
-if("speechSynthesis" in window){
-
-  refreshSpeechVoices();
-
-  window.speechSynthesis.addEventListener(
-    "voiceschanged",
-    refreshSpeechVoices
-  );
-}
-
-function getBestGermanVoice(){
-
-  refreshSpeechVoices();
-
-  const voices=
-    speechVoices||[];
-
-  const german=
-    voices.filter(
-      v=>
-        /^de(-|$)/i.test(
-          v.lang||""
-        )
-    );
-
-  return (
-    german.find(
-      v=>
-        /male|männ|mann|deep|david|markus|hans/i
-          .test(v.name||"")
-    )||
-    german.find(
-      v=>
-        /^de-DE/i.test(v.lang||"")
-    )||
-    german[0]||
-    voices.find(
-      v=>
-        /male|männ|mann|deep|david|markus|hans/i
-          .test(v.name||"")
-    )||
-    voices[0]||
-    null
-  );
-}
-
+function relisten(){if(cont&&!speaking&&!busy)setTimeout(listen,400)}
 function speak(text){
+  text=say(text);if(!text)return;
+  logV("j",text);$("#transcript").textContent=text;
+  if(rec){try{rec.stop()}catch(e){}}
+  if(S.settings.speak===false||muted||!syn){relisten();return}
+  speaking=true;
+  const fin=()=>{if(!speaking)return;speaking=false;relisten()};
+  setTimeout(fin,Math.min(40000,text.length*130+4000));
+  setTimeout(()=>{
+    try{syn.cancel()}catch(e){}
+    setTimeout(()=>{
+      const u=new SpeechSynthesisUtterance(text),v=deVoice();
+      if(v)u.voice=v;u.lang=v?v.lang:"de-DE";u.rate=.95;u.pitch=.8;u.volume=1;
+      u.onend=fin;u.onerror=fin;
+      try{syn.resume()}catch(e){}
+      syn.speak(u);
+      setTimeout(()=>{try{syn.resume()}catch(e){}},200);
+    },250);
+  },200);
+}
+let unlocked=false;
+document.addEventListener("pointerdown",()=>{
+  if(unlocked||!syn)return;unlocked=true;
+  try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;syn.speak(u)}catch(e){}
+},{passive:true});
 
-  text=
-    String(text||"").trim();
-
-  if(!text)return;
-
-  logVoice(
-    "jarvis",
-    text
-  );
-
-  jarvisSpeaking=true;
-
-  if($("#transcript")){
-
-    $("#transcript").textContent=
-      text;
-  }
-
-  setOrb(false);
-
-  if(recognition){
-
-    try{
-      recognition.stop();
-    }catch(e){}
-  }
-
-  if(
-    state.settings.speak===false||
-    muted||
-    !("speechSynthesis" in window)
-  ){
-
-    jarvisSpeaking=false;
-
-    if(
-      continuousMode&&
-      !voiceProcessing
-    ){
-
-      setTimeout(
-        startListening,
-        300
-      );
-    }
-
+/* ---------- Apps öffnen ---------- */
+const APPS=[
+ {k:"youtube",l:"YouTube",re:/you ?tube/i,pkg:"com.google.android.youtube",url:"https://www.youtube.com/",m:"link"},
+ {k:"tiktok",l:"TikTok",re:/tik ?tok/i,pkg:"com.zhiliaoapp.musically",url:"https://www.tiktok.com/",m:"link"},
+ {k:"snapchat",l:"Snapchat",re:/snap ?chat/i,pkg:"com.snapchat.android",url:"https://www.snapchat.com/",m:"link"},
+ {k:"instagram",l:"Instagram",re:/insta(gram)?/i,pkg:"com.instagram.android",url:"https://www.instagram.com/",m:"link"},
+ {k:"whatsapp",l:"WhatsApp",re:/whats? ?'?app/i,pkg:"com.whatsapp",url:"https://web.whatsapp.com/",m:"launch"},
+ {k:"chrome",l:"Chrome",re:/chrome/i,pkg:"com.android.chrome",url:"https://www.google.com/",m:"launch"},
+ {k:"google",l:"Google",re:/google/i,pkg:"com.android.chrome",url:"https://www.google.com/",m:"launch"},
+ {k:"spotify",l:"Spotify",re:/spotify/i,pkg:"com.spotify.music",url:"https://open.spotify.com/",m:"link"}
+];
+const OPEN=/(öffne|oeffne|öffnen|oeffnen|starte|starten|open|aufmachen|mach\b.*\bauf)/i;
+function doOpen(a){
+  pending=null;$("#cb").classList.remove("on");feed("App geöffnet: "+a.l);
+  if(android){
+    const fb=encodeURIComponent(a.url);
+    if(a.m==="link"){const u=new URL(a.url);location.href="intent://"+u.host+u.pathname+"#Intent;scheme=https;package="+a.pkg+";S.browser_fallback_url="+fb+";end"}
+    else location.href="intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package="+a.pkg+";S.browser_fallback_url="+fb+";end";
     return;
   }
-
-  const synth=
-    window.speechSynthesis;
-
-  try{
-    synth.cancel();
-    synth.resume();
-  }catch(e){}
-
-  let finished=false;
-
-  const finish=()=>{
-
-    if(finished)return;
-
-    finished=true;
-    jarvisSpeaking=false;
-
-    if(
-      continuousMode&&
-      !voiceProcessing
-    ){
-
-      setTimeout(
-        startListening,
-        350
-      );
-    }
-  };
-
-  const doSpeak=()=>{
-
-    try{
-
-      refreshSpeechVoices();
-
-      const preferred=
-        getBestGermanVoice();
-
-      const utterance=
-        new SpeechSynthesisUtterance(
-          text
-        );
-
-      if(preferred){
-        utterance.voice=
-          preferred;
-      }
-
-      utterance.lang=
-        preferred?.lang||
-        "de-DE";
-
-      utterance.rate=.94;
-      utterance.pitch=.68;
-      utterance.volume=1;
-
-      utterance.onstart=()=>{
-
-        jarvisSpeaking=true;
-
-        if($("#transcript")){
-
-          $("#transcript").textContent=
-            text;
-        }
-      };
-
-      utterance.onend=finish;
-
-      utterance.onerror=e=>{
-
-        console.error(
-          "JARVIS speech error:",
-          e
-        );
-
-        finish();
-      };
-
-      unlockSpeech();
-
-      synth.speak(
-        utterance
-      );
-
-      setTimeout(
-        ()=>{
-          if(
-            jarvisSpeaking&&
-            synth.speaking
-          ){
-            try{
-              synth.resume();
-            }catch(e){}
-          }
-        },
-        150
-      );
-
-    }catch(e){
-
-      console.error(
-        "Speech output error:",
-        e
-      );
-
-      finish();
-    }
-  };
-
-  if(
-    !speechVoices||
-    !speechVoices.length
-  ){
-
-    let called=false;
-
-    const once=()=>{
-
-      if(called)return;
-
-      called=true;
-
-      synth.removeEventListener(
-        "voiceschanged",
-        once
-      );
-
-      doSpeak();
-    };
-
-    synth.addEventListener(
-      "voiceschanged",
-      once
-    );
-
-    setTimeout(
-      ()=>{
-        if(!called){
-          called=true;
-
-          synth.removeEventListener(
-            "voiceschanged",
-            once
-          );
-
-          doSpeak();
-        }
-      },
-      500
-    );
-
-  }else{
-
-    doSpeak();
-  }
+  window.open(a.url,"_blank","noopener,noreferrer");
 }
-
-
-/* =========================================================
-   VOICE LOG
-   ========================================================= */
-
-function logVoice(who,text){
-
-  const log=
-    $("#voiceLog");
-
-  if(log){
-
-    const row=
-      document.createElement("div");
-
-    row.className=
-      "log-row"+
-      (
-        who==="jarvis"
-        ?" jarvis"
-        :""
-      );
-
-    row.innerHTML=
-      '<span class="who">'+
-      (
-        who==="jarvis"
-        ?"JARVIS"
-        :"YOU"
-      )+
-      "</span>"+
-      escapeHtml(text);
-
-    log.prepend(row);
-
-    while(log.children.length>20){
-
-      log.removeChild(
-        log.lastChild
-      );
-    }
-  }
-
-  if(who!=="system"){
-
-    state.conversations.push({
-      who,
-      text,
-      ts:Date.now()
-    });
-
-    if(
-      state.conversations.length>200
-    ){
-
-      state.conversations.shift();
-    }
-
-    queueSave();
-  }
+function askOpen(a){
+  if(S.settings.appControl===false){speak("Die App-Steuerung ist in den Einstellungen ausgeschaltet.");return}
+  pending=()=>doOpen(a);$("#cbT").textContent=a.l+" öffnen?";$("#cb").classList.add("on");
+  speak(a.l+" öffnen. Tippe unten auf Öffnen.");
 }
+$("#cbY").onclick=()=>{if(pending)pending()};
+$("#cbN").onclick=()=>{pending=null;$("#cb").classList.remove("on")};
+APPS.filter(a=>a.k!=="google").forEach(a=>{const b=document.createElement("button");b.textContent=a.l;b.onclick=()=>{if(S.settings.appControl===false){alert("App-Steuerung ist aus.");return}pending=()=>doOpen(a);$("#cbT").textContent=a.l+" öffnen?";$("#cb").classList.add("on")};$("#appBtns").appendChild(b)});
 
-
-/* =========================================================
-   AI CONVERSATION
-   ========================================================= */
-
-function conversationForAI(currentMessage){
-
-  let items=
-    state.conversations.slice(-20);
-
-  if(items.length){
-
-    const last=
-      items[items.length-1];
-
-    if(
-      last.who==="you"&&
-      String(last.text||"")
-        .trim()===
-      String(currentMessage||"")
-        .trim()
-    ){
-
-      items=
-        items.slice(0,-1);
-    }
-  }
-
-  return items.map(
-    x=>({
-
-      role:
-        x.who==="jarvis"
-        ?"assistant"
-        :"user",
-
-      content:
-        String(x.text||"")
-    })
-  );
-}
-
-async function askAI(message){
-
-  const backend=
-    String(
-      state.settings.aiBackend||""
-    ).trim();
-
-  if(!backend){
-
-    speak(
-      "Mein KI-Backend ist noch nicht eingerichtet. Öffne die Einstellungen und trage dort deine Backend-URL ein."
-    );
-
-    switchView("settings");
-
-    return;
-  }
-
-  try{
-
-    if($("#transcript")){
-
-      $("#transcript").textContent=
-        "JARVIS verarbeitet deine Anfrage…";
-    }
-
-    const endpoint=
-      backend.replace(/\/$/,"")+
-      "/api/chat";
-
-    const res=
-      await fetch(
-        endpoint,
-        {
-          method:"POST",
-
-          headers:{
-            "Content-Type":
-              "application/json"
-          },
-
-          body:JSON.stringify({
-
-            message,
-
-            conversation:
-              conversationForAI(
-                message
-              )
-          })
-        }
-      );
-
-    if(!res.ok){
-
-      let errorText=
-        "HTTP "+res.status;
-
-      try{
-
-        const err=
-          await res.json();
-
-        if(err?.error){
-          errorText=
-            String(err.error);
-        }
-
-      }catch(e){}
-
-      throw new Error(
-        errorText
-      );
-    }
-
-    const data=
-      await res.json();
-
-    const answer=
-      String(
-        data?.reply||
-        "Ich konnte gerade keine Antwort erzeugen."
-      ).trim();
-
-    if(!answer){
-
-      throw new Error(
-        "Empty AI response"
-      );
-    }
-
-    speak(answer);
-
-    renderChat();
-
-  }catch(e){
-
-    console.error(
-      "AI request error:",
-      e
-    );
-
-    speak(
-      "Ich konnte den KI-Dienst gerade nicht erreichen. Prüfe bitte deine Backend-URL und ob dein Vercel-Backend online ist."
-    );
-  }
-}
-
-
-/* =========================================================
-   VOICE TEXT CLEANUP
-   ========================================================= */
-
-function cleanVoiceText(text){
-
-  let s=
-    String(text||"")
-      .replace(/\s+/g," ")
-      .trim();
-
-  if(!s)return "";
-
-  const words=
-    s.split(" ");
-
-  const out=[];
-
-  for(const word of words){
-
-    if(
-      out.length&&
-      out[out.length-1]
-        .toLowerCase()===
-      word.toLowerCase()
-    ){
-      continue;
-    }
-
-    out.push(word);
-  }
-
-  s=
-    out.join(" ");
-
-  const w=
-    s.split(" ");
-
-  if(
-    w.length>=4&&
-    w.length%2===0
-  ){
-
-    const half=
-      w.length/2;
-
-    const a=
-      w.slice(0,half)
-        .join(" ")
-        .toLowerCase();
-
-    const b=
-      w.slice(half)
-        .join(" ")
-        .toLowerCase();
-
-    if(a===b){
-
-      s=
-        w.slice(0,half)
-          .join(" ");
-    }
-  }
-
+/* ---------- Befehle & KI ---------- */
+function dedupe(t){
+  const w=String(t).replace(/\s+/g," ").trim().split(" "),o=[];
+  w.forEach(x=>{if(!o.length||o[o.length-1].toLowerCase()!==x.toLowerCase())o.push(x)});
+  const s=o.join(" "),p=s.split(" ");
+  if(p.length>=4&&p.length%2===0){const h=p.length/2;if(p.slice(0,h).join(" ").toLowerCase()===p.slice(h).join(" ").toLowerCase())return p.slice(0,h).join(" ")}
   return s;
 }
-
-
-/* =========================================================
-   APP TARGETS
-   ========================================================= */
-
-const appTargets={
-
-  youtube:{
-    label:"YouTube",
-
-    androidIntent:
-      "intent://www.youtube.com/#Intent;scheme=https;package=com.google.android.youtube;S.browser_fallback_url=https%3A%2F%2Fwww.youtube.com%2F;end",
-
-    webUrl:
-      "https://www.youtube.com/"
-  },
-
-  spotify:{
-    label:"Spotify",
-
-    androidIntent:
-      "intent://open.spotify.com/#Intent;scheme=https;package=com.spotify.music;S.browser_fallback_url=https%3A%2F%2Fopen.spotify.com%2F;end",
-
-    webUrl:
-      "https://open.spotify.com/"
-  },
-
-  whatsapp:{
-    label:"WhatsApp",
-
-    androidIntent:
-      "intent://send/#Intent;scheme=whatsapp;package=com.whatsapp;S.browser_fallback_url=https%3A%2F%2Fweb.whatsapp.com%2F;end",
-
-    webUrl:
-      "https://web.whatsapp.com/"
-  },
-
-  tiktok:{
-    label:"TikTok",
-
-    androidIntent:
-      "intent://#Intent;scheme=tiktok;package=com.zhiliaoapp.musically;S.browser_fallback_url=https%3A%2F%2Fwww.tiktok.com%2F;end",
-
-    webUrl:
-      "https://www.tiktok.com/"
-  },
-
-  snapchat:{
-    label:"Snapchat",
-
-    androidIntent:
-      "intent://#Intent;scheme=snapchat;package=com.snapchat.android;S.browser_fallback_url=https%3A%2F%2Fwww.snapchat.com%2F;end",
-
-    webUrl:
-      "https://www.snapchat.com/"
-  },
-
-  instagram:{
-    label:"Instagram",
-
-    androidIntent:
-      "intent://#Intent;scheme=instagram;package=com.instagram.android;S.browser_fallback_url=https%3A%2F%2Fwww.instagram.com%2F;end",
-
-    webUrl:
-      "https://www.instagram.com/"
-  },
-
-  chrome:{
-    label:"Chrome",
-
-    androidIntent:
-      "intent://www.google.com/#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2Fwww.google.com%2F;end",
-
-    webUrl:
-      "https://www.google.com/chrome/"
-  },
-
-  roblox:{
-    label:"Roblox",
-
-    androidIntent:
-      "intent://#Intent;scheme=roblox;package=com.roblox.client;S.browser_fallback_url=https%3A%2F%2Fwww.roblox.com%2F;end",
-
-    webUrl:
-      "https://www.roblox.com/"
-  },
-
-  minecraft:{
-    label:"Minecraft",
-
-    androidIntent:
-      "intent://#Intent;scheme=minecraft;package=com.mojang.minecraftpe;S.browser_fallback_url=https%3A%2F%2Fwww.minecraft.net%2F;end",
-
-    webUrl:
-      "https://www.minecraft.net/"
+async function handle(raw){
+  const cmd=dedupe(raw);if(!cmd)return;
+  $("#transcript").textContent=cmd;logV("u",cmd);
+  const l=cmd.toLowerCase();let m;
+  if((m=cmd.match(/^(?:notiz|note|merke|speichere notiz)[:\s]+(.+)/i))){addNote(m[1]);view("memory");speak("Ich habe die Notiz gespeichert.");return}
+  if((m=cmd.match(/^(?:aufgabe|task)[:\s]+(.+)/i))){
+    let t=m[1],p="med";const pm=t.match(/\b(hohe?r?|mittlere?r?|niedrige?r?|high|medium|low)\s*(?:priorität|priority)\b/i);
+    if(pm){const w=pm[1].toLowerCase();p=/^(h)/.test(w)?"high":/^(n|l)/.test(w)?"low":"med";t=t.replace(pm[0],"").trim()}
+    addTask(t,p);view("tasks");speak("Aufgabe hinzugefügt.");return
   }
-};
-  /* =========================================================
-   APP DETECTION
-   ========================================================= */
-
-function detectAppCommand(text){
-
-  const lower=
-    String(text||"")
-      .toLowerCase();
-
-  const app=
-    Object.keys(appTargets)
-      .find(
-        name=>
-          new RegExp(
-            "\\b"+
-            name+
-            "\\b",
-            "i"
-          ).test(lower)
-      );
-
-  if(!app)return null;
-
-  const openIntent=[
-    /\b(?:öffne|oeffne|öffnen|oeffnen|open|starte|start|starten|launch)\b/i,
-
-    /\b(?:mach|mache)\b.*\bauf\b/i,
-
-    /\b(?:kannst du|könntest du|koenntest du)\b.*\b(?:öffnen|oeffnen|open|starten|start|starte)\b/i,
-
-    /\b(?:geh|gehe|bring(?:e)? mich)\b.*\b(?:zu|auf)\b/i
-  ];
-
-  return openIntent.some(
-    r=>r.test(lower)
-  )
-  ?app
-  :null;
-}
-
-
-/* =========================================================
-   APP CONTROL
-   ========================================================= */
-
-function isAndroid(){
-
-  return /Android/i.test(
-    navigator.userAgent||""
-  );
-}
-
-function openApp(target){
-
-  if(!target)return;
-
-  pendingAction=null;
-
-  if($("#confirmBox")){
-
-    $("#confirmBox")
-      .classList
-      .remove("show");
-  }
-
-  pushActivity(
-    "Opening app: "+
-    target.label
-  );
-
-  if(
-    isAndroid()&&
-    target.androidIntent
-  ){
-
-    let fallbackTimer=null;
-    let appOpened=false;
-
-    const onVisibility=()=>{
-
-      if(document.hidden){
-
-        appOpened=true;
-
-        if(fallbackTimer){
-          clearTimeout(
-            fallbackTimer
-          );
-        }
-
-        document.removeEventListener(
-          "visibilitychange",
-          onVisibility
-        );
-      }
-    };
-
-    document.addEventListener(
-      "visibilitychange",
-      onVisibility
-    );
-
-    try{
-
-      window.location.href=
-        target.androidIntent;
-
-    }catch(e){
-
-      console.error(
-        "Android intent error:",
-        e
-      );
-    }
-
-    fallbackTimer=
-      setTimeout(
-        ()=>{
-
-          document.removeEventListener(
-            "visibilitychange",
-            onVisibility
-          );
-
-          if(!appOpened){
-
-            try{
-
-              window.location.href=
-                target.webUrl;
-
-            }catch(e){
-
-              window.open(
-                target.webUrl,
-                "_blank"
-              );
-            }
-          }
-
-        },
-        1500
-      );
-
-    return;
-  }
-
-  const opened=
-    window.open(
-      target.webUrl,
-      "_blank",
-      "noopener,noreferrer"
-    );
-
-  if(!opened){
-
-    window.location.href=
-      target.webUrl;
-  }
-}
-
-function requestAppAction(app){
-
-  const target=
-    appTargets[app];
-
-  if(!target)return;
-
-  if(
-    state.settings.appControl===false
-  ){
-
-    speak(
-      "App-Steuerung ist in den Einstellungen deaktiviert."
-    );
-
-    switchView("settings");
-
-    return;
-  }
-
-  if(
-    state.settings.appConfirm!==false
-  ){
-
-    pendingAction=
-      ()=>openApp(target);
-
-    if($("#confirmText")){
-
-      $("#confirmText").textContent=
-        target.label+
-        " öffnen?";
-    }
-
-    if($("#confirmBox")){
-
-      $("#confirmBox")
-        .classList
-        .add("show");
-    }
-
-    return;
-  }
-
-  openApp(target);
-}
-
-if($("#confirmYes")){
-
-  $("#confirmYes").addEventListener(
-    "click",
-    ()=>{
-
-      if(pendingAction){
-
-        const action=
-          pendingAction;
-
-        pendingAction=null;
-
-        action();
-      }
-    }
-  );
-}
-
-if($("#confirmNo")){
-
-  $("#confirmNo").addEventListener(
-    "click",
-    ()=>{
-
-      pendingAction=null;
-
-      if($("#confirmBox")){
-
-        $("#confirmBox")
-          .classList
-          .remove("show");
-      }
-
-      speak(
-        "Aktion abgebrochen."
-      );
-    }
-  );
-}
-
-$$(".app-btn").forEach(
-  b=>{
-
-    b.addEventListener(
-      "click",
-      ()=>{
-        requestAppAction(
-          b.dataset.app
-        );
-      }
-    );
-  }
-);
-
-
-/* =========================================================
-   COMMAND HANDLER
-   ========================================================= */
-
-async function handleCommand(raw){
-
-  const cmd=
-    cleanVoiceText(raw);
-
-  if(!cmd)return;
-
-  if($("#transcript")){
-
-    $("#transcript").textContent=
-      cmd;
-  }
-
-  logVoice(
-    "you",
-    cmd
-  );
-
-  const lower=
-    cmd.toLowerCase();
-
-  let m;
-
-  m=
-    lower.match(
-      /^(?:jarvis[, ]*)?(?:save |add |take )?note[:\s]+(.+)/
-    );
-
-  if(m){
-
-    const originalStart=
-      cmd.toLowerCase()
-        .indexOf(
-          String(m[1]).toLowerCase()
-        );
-
-    const noteText=
-      originalStart>=0
-      ?cmd.slice(originalStart)
-      :m[1];
-
-    addNote(noteText);
-
-    switchView("memory");
-
-    speak(
-      "Ich habe die Notiz gespeichert."
-    );
-
-    return;
-  }
-
-  if(
-    /^(?:jarvis[, ]*)?show(?: my)? notes?$/
-      .test(lower)
-  ){
-
-    switchView("memory");
-
-    speak(
-      "Hier sind deine Notizen. Insgesamt "+
-      state.notes.length+"."
-    );
-
-    return;
-  }
-
-  m=
-    lower.match(
-      /^(?:jarvis[, ]*)?(?:add |create )?task[:\s]+(.+)/
-    );
-
-  if(m){
-
-    let text=m[1];
-    let priority="med";
-
-    const pm=
-      text.match(
-        /\b(high|medium|med|low)\s*priority\b/i
-      );
-
-    if(pm){
-
-      priority=
-        pm[1].toLowerCase()
-          .startsWith("h")
-        ?"high"
-        :pm[1].toLowerCase()
-          .startsWith("l")
-        ?"low"
-        :"med";
-
-      text=
-        text.replace(
-          pm[0],
-          ""
-        ).trim();
-    }
-
-    addTask(
-      text,
-      priority
-    );
-
-    switchView("tasks");
-
-    speak(
-      "Aufgabe hinzugefügt."
-    );
-
-    return;
-  }
-
-  if(
-    /^(?:jarvis[, ]*)?show(?: my)? tasks?$/
-      .test(lower)
-  ){
-
-    switchView("tasks");
-
-    speak(
-      "Du hast "+
-      state.tasks.filter(
-        t=>!t.done
-      ).length+
-      " offene Aufgaben."
-    );
-
-    return;
-  }
-
-  m=
-    lower.match(
-      /^(?:jarvis[, ]*)?(?:go to |open )?(home|memory|tasks|voice|settings|chat)$/
-    );
-
-  if(m){
-
-    switchView(m[1]);
-
-    speak(
-      "Öffne "+m[1]+"."
-    );
-
-    return;
-  }
-
-  const appCommand=
-    detectAppCommand(cmd);
-
-  if(appCommand){
-
-    requestAppAction(
-      appCommand
-    );
-
-    return;
-  }
-
+  if(/^(zeige|zeig|show)\s+(meine\s+)?notizen?$/i.test(l)){view("memory");speak("Du hast "+S.notes.length+" Notizen.");return}
+  if(/^(zeige|zeig|show)\s+(meine\s+)?(aufgaben|tasks?)$/i.test(l)){view("tasks");speak("Du hast "+S.tasks.filter(t=>!t.done).length+" offene Aufgaben.");return}
+  if(OPEN.test(l)){const a=APPS.find(x=>x.re.test(l));if(a){askOpen(a);return}}
   await askAI(cmd);
 }
-
-
-/* =========================================================
-   CHAT
-   ========================================================= */
-
-function renderChat(){
-
-  const box=
-    $("#chatMessages");
-
-  if(!box)return;
-
-  box.innerHTML="";
-
-  const items=
-    state.conversations.slice(-30);
-
-  if(!items.length){
-
-    box.innerHTML=
-      '<div class="empty">'+
-      'Noch kein Chat. Schreib JARVIS etwas.'+
-      '</div>';
-
-    return;
-  }
-
-  items.forEach(x=>{
-
-    const row=
-      document.createElement("div");
-
-    row.className=
-      "chat-msg "+
-      (
-        x.who==="jarvis"
-        ?"jarvis"
-        :"user"
-      );
-
-    row.innerHTML=
-      '<div class="chat-who">'+
-      (
-        x.who==="jarvis"
-        ?"JARVIS"
-        :"DU"
-      )+
-      '</div>'+
-      escapeHtml(x.text);
-
-    box.appendChild(row);
-  });
-
-  box.scrollTop=
-    box.scrollHeight;
-}
-
-async function sendChatMessage(){
-
-  const input=
-    $("#chatInput");
-
-  if(!input)return;
-
-  const message=
-    input.value.trim();
-
-  if(!message)return;
-
-  input.value="";
-
-  logVoice(
-    "you",
-    message
-  );
-
-  renderChat();
-
-  switchView("chat");
-
-  await askAI(message);
-
-  renderChat();
-}
-
-if($("#chatSend")){
-
-  $("#chatSend").addEventListener(
-    "click",
-    sendChatMessage
-  );
-}
-
-if($("#chatInput")){
-
-  $("#chatInput").addEventListener(
-    "keydown",
-    e=>{
-
-      if(
-        e.key==="Enter"&&
-        !e.shiftKey
-      ){
-
-        e.preventDefault();
-
-        sendChatMessage();
-      }
-    }
-  );
-}
-
-
-/* =========================================================
-   SPEECH RECOGNITION
-   ========================================================= */
-
-const SpeechRec=
-  window.SpeechRecognition||
-  window.webkitSpeechRecognition;
-
-let recognition=null;
-let listening=false;
-let continuousMode=false;
-let pttHeld=false;
-
-let voiceBuffer="";
-let voiceSilenceTimer=null;
-let voiceProcessing=false;
-let lastFinalText="";
-
-const VOICE_END_DELAY=1200;
-
-
-/* =========================================================
-   VOICE BUFFER
-   ========================================================= */
-
-function scheduleVoiceSend(){
-
-  clearTimeout(
-    voiceSilenceTimer
-  );
-
-  if(
-    !voiceBuffer.trim()||
-    voiceProcessing||
-    jarvisSpeaking
-  ){
-
-    return;
-  }
-
-  voiceSilenceTimer=
-    setTimeout(
-      async()=>{
-
-        if(
-          jarvisSpeaking||
-          voiceProcessing
-        ){
-
-          return;
-        }
-
-        const message=
-          cleanVoiceText(
-            voiceBuffer
-          );
-
-        voiceBuffer="";
-
-        if(!message){
-          return;
-        }
-
-        voiceProcessing=true;
-
-        try{
-
-          await handleCommand(
-            message
-          );
-
-        }finally{
-
-          voiceProcessing=false;
-
-          lastFinalText="";
-
-          if(
-            continuousMode&&
-            !jarvisSpeaking
-          ){
-
-            setTimeout(
-              startListening,
-              300
-            );
-          }
-        }
-
-      },
-      VOICE_END_DELAY
-    );
-}
-
-
-/* =========================================================
-   RECOGNITION
-   ========================================================= */
-
-function setupRecognition(){
-
-  if(!SpeechRec){
-
-    if($("#transcript")){
-
-      $("#transcript").textContent=
-        "Spracherkennung wird in diesem Browser nicht unterstützt.";
-    }
-
-    return;
-  }
-
-  recognition=
-    new SpeechRec();
-
-  recognition.continuous=true;
-  recognition.interimResults=true;
-  recognition.lang="de-DE";
-  recognition.maxAlternatives=1;
-
-  recognition.onstart=()=>{
-
-    listening=true;
-
-    setOrb(true);
-  };
-
-  recognition.onresult=e=>{
-
-    let interim="";
-
-    for(
-      let i=e.resultIndex;
-      i<e.results.length;
-      i++
-    ){
-
-      const result=
-        e.results[i];
-
-      const transcript=
-        String(
-          result[0]?.transcript||""
-        ).trim();
-
-      if(!transcript)
-        continue;
-
-      if(result.isFinal){
-
-        const lower=
-          transcript.toLowerCase();
-
-        const accepted=
-          pttHeld||
-          continuousMode||
-          lower.includes("jarvis");
-
-        if(!accepted)
-          continue;
-
-        let stripped=
-          transcript
-            .replace(
-              /^\s*(hey\s+)?jarvis[,]?\s*/i,
-              ""
-            )
-            .trim();
-
-        if(!stripped){
-
-          if($("#transcript")){
-
-            $("#transcript").textContent=
-              "Ich höre zu…";
-          }
-
-          continue;
-        }
-
-        if(jarvisSpeaking)
-          continue;
-
-        const cleaned=
-          cleanVoiceText(
-            stripped
-          );
-
-        if(!cleaned)
-          continue;
-
-        if(
-          cleaned.toLowerCase()===
-          lastFinalText.toLowerCase()
-        ){
-
-          continue;
-        }
-
-        lastFinalText=
-          cleaned;
-
-        const current=
-          cleanVoiceText(
-            voiceBuffer
-          );
-
-        if(
-          !current||
-          !current
-            .toLowerCase()
-            .endsWith(
-              cleaned.toLowerCase()
-            )
-        ){
-
-          voiceBuffer+=
-            (
-              voiceBuffer
-              ?" "
-              :""
-            )+
-            cleaned;
-        }
-
-        voiceBuffer=
-          cleanVoiceText(
-            voiceBuffer
-          );
-
-        if($("#transcript")){
-
-          $("#transcript").textContent=
-            voiceBuffer;
-        }
-
-        scheduleVoiceSend();
-
-      }else{
-
-        interim+=
-          (
-            interim
-            ?" "
-            :""
-          )+
-          transcript;
-      }
-    }
-
-    if(interim){
-
-      const preview=
-        (
-          voiceBuffer
-          ?voiceBuffer+" "
-          :""
-        )+
-        interim.trim();
-
-      if($("#transcript")){
-
-        $("#transcript").textContent=
-          preview;
-      }
-
-      clearTimeout(
-        voiceSilenceTimer
-      );
-    }
-  };
-
-  recognition.onerror=e=>{
-
-    console.warn(
-      "Speech recognition:",
-      e?.error
-    );
-
-    setOrb(false);
-
-    listening=false;
-
-    if(
-      e?.error==="not-allowed"||
-      e?.error==="service-not-allowed"
-    ){
-
-      if($("#transcript")){
-
-        $("#transcript").textContent=
-          "Mikrofonzugriff wurde blockiert.";
-      }
-
-      continuousMode=false;
-
-      if($("#continuousToggle")){
-
-        $("#continuousToggle")
-          .classList
-          .remove("active");
-      }
-
-      return;
-    }
-
-    if(
-      e?.error==="aborted"
-    ){
-
-      return;
-    }
-
-    if(
-      continuousMode&&
-      !jarvisSpeaking&&
-      !voiceProcessing
-    ){
-
-      setTimeout(
-        startListening,
-        500
-      );
-    }
-  };
-
-  recognition.onend=()=>{
-
-    listening=false;
-
-    setOrb(false);
-
-    if(
-      voiceBuffer.trim()&&
-      !voiceProcessing&&
-      !jarvisSpeaking
-    ){
-
-      scheduleVoiceSend();
-    }
-
-    if(
-      continuousMode&&
-      !jarvisSpeaking&&
-      !voiceProcessing
-    ){
-
-      setTimeout(
-        startListening,
-        400
-      );
-    }
-  };
-}
-
-function setOrb(on){
-
-  listening=!!on;
-
-  if($("#orb")){
-
-    $("#orb")
-      .classList
-      .toggle(
-        "listening",
-        !!on
-      );
-  }
-}
-
-function startListening(){
-
-  if(
-    jarvisSpeaking||
-    voiceProcessing
-  ){
-
-    return;
-  }
-
-  if(!recognition){
-
-    setupRecognition();
-  }
-
-  if(!recognition)
-    return;
-
+async function askAI(msg){
+  const b=String(S.settings.aiBackend||"").trim();
+  if(!b){speak("Mein KI-Backend ist noch nicht eingerichtet. Trage die Adresse in den Einstellungen ein.");view("settings");return}
   try{
-
-    recognition.start();
-
-  }catch(e){}
+    $("#transcript").textContent="JARVIS denkt nach…";
+    let h=S.conversations.slice(-20);
+    if(h.length&&h[h.length-1].who==="you"&&h[h.length-1].text.trim()===msg.trim())h=h.slice(0,-1);
+    const r=await fetch(b.replace(/\/$/,"")+"/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg,conversation:h.map(x=>({role:x.who==="jarvis"?"assistant":"user",content:String(x.text)}))})});
+    if(!r.ok){let e="HTTP "+r.status;try{e=(await r.json()).error||e}catch(x){}throw new Error(e)}
+    const d=await r.json();
+    speak(String(d.reply||"Ich konnte gerade keine Antwort erzeugen.").trim());renderChat();
+  }catch(e){console.error(e);speak("Ich konnte den KI-Dienst nicht erreichen. Prüfe die Backend-Adresse.")}
 }
 
-function stopListening(){
-
-  clearTimeout(
-    voiceSilenceTimer
-  );
-
-  if(recognition){
-
-    try{
-      recognition.stop();
-    }catch(e){}
-  }
-
-  listening=false;
-
-  setOrb(false);
+/* ---------- Chat ---------- */
+function renderChat(){
+  const b=$("#chatMsgs");b.innerHTML="";const it=S.conversations.slice(-30);
+  if(!it.length){b.innerHTML='<div class="empty">Noch kein Chat.</div>';return}
+  it.forEach(x=>{const d=document.createElement("div");d.className="m "+(x.who==="jarvis"?"j":"u");d.textContent=x.text;b.appendChild(d)});
+  b.scrollTop=b.scrollHeight;
 }
-
-
-/* =========================================================
-   PUSH TO TALK
-   ========================================================= */
-
-function beginPTT(e){
-
-  if(e)
-    e.preventDefault();
-
-  unlockSpeech();
-
-  pttHeld=true;
-
-  voiceBuffer="";
-  lastFinalText="";
-
-  clearTimeout(
-    voiceSilenceTimer
-  );
-
-  startListening();
+async function sendChat(){
+  const i=$("#cIn"),m=i.value.trim();if(!m)return;i.value="";
+  logV("u",m);renderChat();await askAI(m);renderChat();
 }
+$("#cSend").onclick=sendChat;
+$("#cIn").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat()}};
 
-function endPTT(e){
-
-  if(e)
-    e.preventDefault();
-
-  if(!pttHeld)
-    return;
-
-  pttHeld=false;
-
-  if(!continuousMode){
-
-    stopListening();
-  }
-
-  if(voiceBuffer.trim()){
-
-    scheduleVoiceSend();
-  }
-}
-
-if($("#ptt")){
-
-  $("#ptt").addEventListener(
-    "pointerdown",
-    beginPTT
-  );
-
-  $("#ptt").addEventListener(
-    "pointerup",
-    endPTT
-  );
-
-  $("#ptt").addEventListener(
-    "pointercancel",
-    endPTT
-  );
-
-  $("#ptt").addEventListener(
-    "pointerleave",
-    e=>{
-      if(pttHeld)
-        endPTT(e);
+/* ---------- Spracherkennung ---------- */
+function orb(on){$("#orb").classList.toggle("l",!!on)}
+function setupRec(){
+  const R=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!R){$("#transcript").textContent="Spracherkennung wird in diesem Browser nicht unterstützt.";return}
+  rec=new R();rec.continuous=true;rec.interimResults=true;rec.lang="de-DE";
+  rec.onstart=()=>orb(true);
+  rec.onresult=e=>{
+    let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const r=e.results[i],t=r[0].transcript.trim();if(!t)continue;
+      if(r.isFinal){
+        if(speaking)continue;
+        if(!(ptt||cont||/jarvis/i.test(t)))continue;
+        const s=t.replace(/^\s*(hey\s+)?jarvis[,]?\s*/i,"").trim();
+        if(s){buf=(buf?buf+" ":"")+s;$("#transcript").textContent=buf;send(1300)}
+      }else interim+=t+" ";
     }
-  );
+    if(interim&&!speaking)$("#transcript").textContent=((buf?buf+" ":"")+interim).trim();
+  };
+  rec.onerror=e=>{orb(false);if(e.error==="not-allowed"||e.error==="service-not-allowed"){cont=false;$("#cont").classList.remove("on");$("#transcript").textContent="Mikrofonzugriff blockiert."}};
+  rec.onend=()=>{orb(false);if(buf&&!busy&&!speaking)send(300);else relisten()};
 }
-
-
-/* =========================================================
-   CONTINUOUS LISTENING
-   ========================================================= */
-
-if($("#continuousToggle")){
-
-  $("#continuousToggle").addEventListener(
-    "click",
-    ()=>{
-
-      unlockSpeech();
-
-      continuousMode=
-        !continuousMode;
-
-      $("#continuousToggle")
-        .classList
-        .toggle(
-          "active",
-          continuousMode
-        );
-
-      state.settings.continuous=
-        continuousMode;
-
-      queueSave();
-
-      if(continuousMode){
-
-        startListening();
-
-      }else{
-
-        stopListening();
-      }
-    }
-  );
+function send(d){
+  clearTimeout(tmr);
+  tmr=setTimeout(async()=>{
+    const m=buf.trim();buf="";if(!m||speaking||busy)return;
+    busy=true;try{await handle(m)}finally{busy=false;relisten()}
+  },d);
 }
+function listen(){if(speaking||busy)return;if(!rec)setupRec();if(!rec)return;try{rec.start()}catch(e){}}
+function unlisten(){clearTimeout(tmr);if(rec){try{rec.stop()}catch(e){}}orb(false)}
+const P=$("#ptt");
+P.addEventListener("pointerdown",e=>{e.preventDefault();ptt=true;buf="";listen()});
+["pointerup","pointercancel","pointerleave"].forEach(ev=>P.addEventListener(ev,()=>{if(!ptt)return;ptt=false;if(!cont)unlisten();if(buf.trim())send(300)}));
+P.addEventListener("contextmenu",e=>e.preventDefault());
+$("#cont").onclick=()=>{cont=!cont;$("#cont").classList.toggle("on",cont);S.settings.continuous=cont;$("#tgCont").classList.toggle("on",cont);queue();cont?listen():unlisten()};
+$("#mute").onclick=()=>{muted=!muted;$("#mute").classList.toggle("on",muted);S.settings.speak=!muted;$("#tgSpeak").classList.toggle("on",!muted);queue();if(muted&&syn){try{syn.cancel()}catch(e){}speaking=false}};
 
-
-/* =========================================================
-   MUTE
-   ========================================================= */
-
-if($("#muteBtn")){
-
-  $("#muteBtn").addEventListener(
-    "click",
-    ()=>{
-
-      muted=!muted;
-
-      $("#muteBtn")
-        .classList
-        .toggle(
-          "active",
-          muted
-        );
-
-      state.settings.speak=
-        !muted;
-
-      queueSave();
-
-      if(
-        muted&&
-        "speechSynthesis" in window
-      ){
-
-        try{
-
-          window.speechSynthesis.cancel();
-
-        }catch(e){}
-
-        jarvisSpeaking=false;
-
-        if(continuousMode){
-
-          setTimeout(
-            startListening,
-            200
-          );
-        }
-      }
-    }
-  );
+/* ---------- Einstellungen ---------- */
+function tog(id,key,fn){$(id).onclick=function(){this.classList.toggle("on");S.settings[key]=this.classList.contains("on");queue();if(fn)fn(S.settings[key])}}
+tog("#tgApp","appControl");
+tog("#tgCont","continuous",v=>{cont=v;$("#cont").classList.toggle("on",v);v?listen():unlisten()});
+tog("#tgSpeak","speak",v=>{muted=!v;$("#mute").classList.toggle("on",muted);if(!v&&syn){try{syn.cancel()}catch(e){}speaking=false}});
+$("#aiSave").onclick=()=>{
+  S.settings.aiBackend=$("#aiIn").value.trim().replace(/\/$/,"");
+  try{localStorage.setItem("mars_jarvis_ai_backend",S.settings.aiBackend)}catch(e){}
+  queue();feed("KI-Backend gespeichert");speak(S.settings.aiBackend?"KI-Backend gespeichert.":"KI-Backend entfernt.");
+};
+function applyUI(){
+  $("#tgApp").classList.toggle("on",S.settings.appControl!==false);
+  $("#tgCont").classList.toggle("on",!!S.settings.continuous);
+  $("#tgSpeak").classList.toggle("on",S.settings.speak!==false);
+  muted=S.settings.speak===false;cont=!!S.settings.continuous;
+  $("#cont").classList.toggle("on",cont);$("#mute").classList.toggle("on",muted);
+  $("#aiIn").value=S.settings.aiBackend||"";
 }
-
-
-/* =========================================================
-   SETTINGS
-   ========================================================= */
-
-if($("#swContinuous")){
-
-  $("#swContinuous").addEventListener(
-    "click",
-    function(){
-
-      this.classList.toggle(
-        "on"
-      );
-
-      state.settings.continuous=
-        this.classList.contains("on");
-
-      queueSave();
-
-      continuousMode=
-        state.settings.continuous;
-
-      $("#continuousToggle")
-        ?.classList
-        .toggle(
-          "active",
-          continuousMode
-        );
-
-      if(continuousMode){
-
-        startListening();
-
-      }else{
-
-        stopListening();
-      }
-    }
-  );
-}
-
-if($("#swSpeak")){
-
-  $("#swSpeak").addEventListener(
-    "click",
-    function(){
-
-      this.classList.toggle(
-        "on"
-      );
-
-      state.settings.speak=
-        this.classList.contains("on");
-
-      queueSave();
-
-      muted=
-        !state.settings.speak;
-
-      $("#muteBtn")
-        ?.classList
-        .toggle(
-          "active",
-          muted
-        );
-
-      if(muted){
-
-        try{
-
-          window.speechSynthesis.cancel();
-
-        }catch(e){}
-
-        jarvisSpeaking=false;
-      }
-    }
-  );
-}
-
-if($("#swAppControl")){
-
-  $("#swAppControl").addEventListener(
-    "click",
-    function(){
-
-      this.classList.toggle(
-        "on"
-      );
-
-      state.settings.appControl=
-        this.classList.contains("on");
-
-      queueSave();
-    }
-  );
-}
-
-if($("#swAppConfirm")){
-
-  $("#swAppConfirm").addEventListener(
-    "click",
-    function(){
-
-      this.classList.toggle(
-        "on"
-      );
-
-      state.settings.appConfirm=
-        this.classList.contains("on");
-
-      queueSave();
-    }
-  );
-}
-
-if($("#saveAiBackend")){
-
-  $("#saveAiBackend").addEventListener(
-    "click",
-    ()=>{
-
-      state.settings.aiBackend=
-        $("#aiBackendInput")
-          .value
-          .trim()
-          .replace(/\/$/,"");
-
-      localStorage.setItem(
-        "mars_jarvis_ai_backend",
-        state.settings.aiBackend
-      );
-
-      queueSave();
-
-      pushActivity(
-        "AI backend saved."
-      );
-
-      speak(
-        state.settings.aiBackend
-        ?"KI-Backend gespeichert."
-        :"KI-Backend entfernt."
-      );
-    }
-  );
-}
-
-
-/* =========================================================
-   SETTINGS UI
-   ========================================================= */
-
-function applySettingsToUI(){
-
-  if($("#swContinuous")){
-
-    $("#swContinuous")
-      .classList
-      .toggle(
-        "on",
-        !!state.settings.continuous
-      );
-  }
-
-  if($("#swSpeak")){
-
-    $("#swSpeak")
-      .classList
-      .toggle(
-        "on",
-        state.settings.speak!==false
-      );
-  }
-
-  if($("#swAppControl")){
-
-    $("#swAppControl")
-      .classList
-      .toggle(
-        "on",
-        state.settings.appControl!==false
-      );
-  }
-
-  if($("#swAppConfirm")){
-
-    $("#swAppConfirm")
-      .classList
-      .toggle(
-        "on",
-        state.settings.appConfirm!==false
-      );
-  }
-
-  muted=
-    state.settings.speak===false;
-
-  continuousMode=
-    !!state.settings.continuous;
-
-  if($("#continuousToggle")){
-
-    $("#continuousToggle")
-      .classList
-      .toggle(
-        "active",
-        continuousMode
-      );
-  }
-
-  if($("#muteBtn")){
-
-    $("#muteBtn")
-      .classList
-      .toggle(
-        "active",
-        muted
-      );
-  }
-
-  if($("#aiBackendInput")){
-
-    $("#aiBackendInput").value=
-      state.settings.aiBackend||"";
-  }
-}
-
-
-/* =========================================================
-   RENDER
-   ========================================================= */
-
-function renderAll(){
-
-  renderNotes();
-  renderTasks();
-  updateStats();
-}
-
-
-/* =========================================================
-   STARTUP
-   ========================================================= */
-
-localLoad();
-
-applySettingsToUI();
-
-renderAll();
-
-renderChat();
-
-setupRecognition();
-
-if("speechSynthesis" in window){
-
-  refreshSpeechVoices();
-
-  setTimeout(
-    refreshSpeechVoices,
-    300
-  );
-
-  setTimeout(
-    refreshSpeechVoices,
-    1000
-  );
-
-  setTimeout(
-    refreshSpeechVoices,
-    2000
-  );
-}
-
-document.addEventListener(
-  "pointerdown",
-  ()=>{
-    unlockSpeech();
-  },
-  {
-    passive:true
-  }
-);
-
-
-/* =========================================================
-   BOOT
-   ========================================================= */
-
-setTimeout(()=>{
-
-  const boot=
-    document.getElementById("boot");
-
-  if(boot){
-
-    boot.style.opacity="0";
-
-    setTimeout(
-      ()=>{
-        boot.remove();
-      },
-      650
-    );
-  }
-
-  if(
-    continuousMode&&
-    !jarvisSpeaking
-  ){
-
-    setTimeout(
-      startListening,
-      500
-    );
-  }
-
-},900);
-
+function renderAll(){renderNotes();renderTasks();stats()}
+
+/* ---------- Start ---------- */
+lload();applyUI();renderAll();renderChat();setupRec();
+setTimeout(()=>{const b=$("#boot");b.style.opacity="0";setTimeout(()=>b.remove(),650);if(cont)setTimeout(listen,500)},800);
 })();
 </script>
+</body>
+</html>
