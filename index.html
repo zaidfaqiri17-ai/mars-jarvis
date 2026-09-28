@@ -405,9 +405,46 @@ async function askAI(msg){
 } 
 /* ---------- Chat ---------- */
 function renderChat(){
-  const b=$("#chatMsgs");b.innerHTML="";const it=S.conversations.slice(-30);
-  if(!it.length){b.innerHTML='<div class="empty">Noch kein Chat.</div>';return}
-  it.forEach(x=>{const d=document.createElement("div");d.className="m "+(x.who==="jarvis"?"j":"u");d.textContent=x.text;b.appendChild(d)});
+  const b=$("#chatMsgs");
+  b.innerHTML="";
+
+  const it=S.conversations.slice(-30);
+
+  if(!it.length){
+    b.innerHTML='<div class="empty">Noch kein Chat.</div>';
+    return;
+  }
+
+  it.forEach(x=>{
+    const d=document.createElement("div");
+
+    d.className=
+      "m "+
+      (x.who==="jarvis"?"j":"u");
+
+    d.textContent=x.text;
+
+    b.appendChild(d);
+
+    /* Bild direkt unter der zugehörigen JARVIS-Nachricht */
+    if(
+      x.who==="jarvis" &&
+      x.image
+    ){
+      const wrap=document.createElement("div");
+      wrap.className="chat-image-wrap";
+
+      const image=document.createElement("img");
+      image.className="chat-image";
+      image.src=x.image;
+      image.alt="Von JARVIS generiertes Bild";
+      image.loading="lazy";
+
+      wrap.appendChild(image);
+      b.appendChild(wrap);
+    }
+  });
+
   b.scrollTop=b.scrollHeight;
 }
 async function sendChat(){
