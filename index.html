@@ -397,9 +397,7 @@ setTimeout(()=>{const b=$("#boot");b.style.opacity="0";setTimeout(()=>b.remove()
   <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/service-worker.js");
-  });
-}
+   navigator.serviceWorker.register("/mars-jarvis/service-worker.js");
   </script>
 </body>
 </html>
