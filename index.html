@@ -309,7 +309,6 @@ function dedupe(t){
 }
 async function askAI(msg){
   const b=String(S.settings.aiBackend||"").trim();
- console.log("JARVIS BACKEND:", b);
 
   if(!b){
     speak("Mein KI-Backend ist noch nicht eingerichtet. Trage die Adresse in den Einstellungen ein.");
