@@ -2,7 +2,7 @@
   "name": "MARS JARVIS",
   "short_name": "JARVIS",
   "description": "Persönlicher KI-Assistent",
-  "start_url": "/",
+  "start_url": "/mars-jarvis/",
   "display": "standalone",
   "background_color": "#05070b",
   "theme_color": "#05070b",
